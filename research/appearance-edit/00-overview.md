@@ -50,3 +50,41 @@ binary formats; this repository is the reverse-engineering research base for tha
 
 Status: **complete for R0-A scope**. Next session: `.hap` save/load buffer
 builder (see 07-open-questions.md).
+
+### Session R0-A.1 — 2026-11-17 — HAP format reconstruction from corpus
+
+- **Inventory + validation of the reference corpus**: 111 `.hap` (all v1) + 11
+  `.fnt` (all v2). Built two read-only, bounds-checked tools:
+  `tools/research/hap_inventory.py` (headers + sha256 →
+  `tools/research/corpus-inventory.json`) and `tools/research/hap_inspect.py`
+  (full structural inspector/validator). Full-corpus run: **111/111 clean**.
+  (See `08-corpus-inventory.md`, `../fonts/00-corpus-inventory.md`.)
+- **Fully specified the HAP on-disk format** — header (0x88, all multi-byte
+  fields big-endian), Block A (timestamps + 4 display strings), sections C
+  (512-slot table + C-bitmap pool), D (v1 = 204 words + built-in permutation;
+  v2 = 54 direct), E (v1 = 192-row table + E-bitmap pool; v2 = [count][table]
+  + %IKN pool), F (%IKN ink records), G (%MSI glyph records); color encoding
+  0x00BBGGRR. Writer = `hapSerialize` (v2); parser = `hapParse`. (See
+  `04-hap-format.md`, rewritten.)
+- **Critical compatibility finding**: the v1 E row→widget map is NOT in the
+  file — it is a built-in table in the editor (rows 0/99–106 in this build),
+  while every corpus file stores E data in rows 1–95. AppearanceEdit 1.400
+  therefore renders no v1 E icons; v1 E content is a legacy payload from
+  older builds/the runtime. (See `04-hap-format.md` §8.3, `08` §1.5.)
+- **Recovered two embedded HAP v2 default blobs** ("Evil Chiaroscuro 2.0")
+  from the executable: complete blob A @ 0x466DD4 (70,304 B, C/D/E/F/G, no
+  xrefs) and referenced blob B @ 0x4683D4 (D-default source). Extracted to
+  `assets/builtin-EvilChiaroscuro-v2-{A,B}.hap`; both validate clean under the
+  inspector (the only real v2 samples). Blob A's F/G sections confirm the
+  %IKN (25 records, `data`/`font/`/`text/` paths, 1/24bpp) and %MSI (19
+  2bpp glyphs) record formats.
+- Applied and verified **45 program-local renames** (40 HAP-layer functions,
+  5 built-in data tables/blobs). First batch pass 22/45 (23 identifiers failed
+  on uppercase-hex vs. Ghidra's lowercase auto-names); retry 23/23. Spot-checked
+  via `get_function_info` read-back. See `06-symbol-ledger.md` (R0-A.1 section).
+- No GDT archive-provided definitions touched; no structure/enum types created.
+- Ghidra project saved at session end.
+
+Status: **complete for R0-A.1 scope**. Next: runtime cross-check (v1 E row
+map, F/G consumers), renderer pass (widget state table / DIB model), DDE
+(see `07-open-questions.md`).
