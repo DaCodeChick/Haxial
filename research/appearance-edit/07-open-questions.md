@@ -79,18 +79,11 @@ new questions from R0-A.1 are in §4.
    FILETIME and refreshes label doc+0x74); previous-save (A+0/A+4) persists
    from the file. See `04-hap-format.md` §5.
 
-## Suggested next sessions (in priority order)
+## Suggested next sessions (in priority order) — *superseded*
 
-1. **Runtime cross-check** when available: does the Haxial runtime load v1 E
-   rows 1–95, consume F/G, and read the option field? (Resolves 4.1, 4.6.)
-2. **Renderer pass**: xrefs into the widget state table `0x4624xx`–`0x465xxx`
-   and the `0x4649xx`–`0x465xxx` descriptor blocks — u16 metric meanings,
-   `SetDIBitsToDevice` caller, DIB16/24/32 model (old items 3, 8).
-3. **DDE subsystem**: service names + payloads (old item 4).
-4. **Main window WndProc + menu dispatch** (old item 10) — connect the
-   "Open/Save Appearance File" dialogs to `hapLoadEntry`/`hapSaveEntry`.
-5. **Capture a v2 save** (run the editor on a VM or hand-assemble from the
-   spec) to close the write-path validation loop.
+Pre-R0-A.2 list; item 2 (renderer pass / SetDIBitsToDevice caller) and the
+color-model half of the renderer work were resolved in R0-A.2. Replaced by
+the post-R0-A.2 next-stage plan at the end of this file (§6).
 
 ## 5. R0-A.2 status (2026-11-18)
 
@@ -132,3 +125,43 @@ new questions from R0-A.1 are in §4.
   (resource select: type 7, modes 0/1/2/6), `.fnt` font rasterizer location.
 - Carried: DDE (item 4), subsystem inits (9), WndProc (10), formatters (11),
   string class table (13), state-record fields (3), registry byte-swaps (5).
+
+## 6. Next-stage plan (post-R0-A.2, 2026-11-18)
+
+**Stage S1 — UI layer: widget geometry and DIB construction (Ghidra +
+corpus)**
+1. DIB builder: decompile the 0x425xxx–0x42E3xx neighborhood
+   (`FUN_00425C30`, `FUN_00426610`, `FUN_0042A170`, clip helpers
+   `FUN_0042E370`/`FUN_0042DC90`/`FUN_004459E0`) — confirm palette +
+   transparent-index + nine-slice expansion into 32bpp buffers; name and
+   type the pipeline (extend `hapBitmapObj` consumers).
+2. Remaining 4 `widgetBlit` painters (0x410960, 0x43BC00, 0x4514C0,
+   0x446770) — button/tick/scroll/list geometry math; adaptive scrollbar
+   rules (arrows dropped below threshold, per `vscrollbars.png`).
+3. D 54-role table: per-widget color-role indices (cross-check against
+   `app-builtintheme-blank/colors.png` swatch order).
+4. C-blob ext-header residues: u32 colour role (backing/transition?),
+   inset-group semantics on the (5,0,5,0) samples; `labelPaint` helpers
+   (`FUN_0040CE90`, `FUN_004093E0`) and the `.fnt` rasterizer.
+5. Semantic-enrichment pass over S1 scope (prototypes, structs, comments —
+   same discipline as `09` §1).
+
+**Stage S2 — Remaining evidence closure**
+6. Examine the 16 unexamined screenshots (priority: `popupmenu.png` —
+   off-window `dcBlitDib` path; `colors.png`; `mouseicons.png` — %MSI
+   consumer; `hscrollbars.png`).
+7. State-record fields (item 3) + widget-descriptor blocks `0x4649xx`–
+   `0x465xxx` (volume-map referents) — u16 metric meanings.
+8. WndProc/menu dispatch (item 10) + DDE (item 4) + subsystem inits (item 9)
+   — editor framework completeness.
+9. Capture a real v2 save (hand-assemble from the spec if no VM is
+   available) to close the write-path validation loop.
+
+**Stage S3 — Rust re-implementation design (out of scope until S1/S2 done)**
+10. Design the modern appearance format + toolkit around the confirmed
+    general model: six-slot directory, on-disk `[00,R,G,B]` colors, 9-slice
+    C records, composited 32bpp DIB rendering, bitmap-font text — with
+    OpenKDX interop notes (cross-reference/00 §8) as input, not as the sole
+    authority.
+11. Runtime cross-check once a non-editor Haxial client capture is
+    available (v1 E rows 1–95, F/G consumers, option nibbles).
