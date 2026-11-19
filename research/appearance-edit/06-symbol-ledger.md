@@ -218,3 +218,84 @@ None — all created types are program-local under `/haxial/hap`.
   inferred, not evidenced; names describe behavior).
 - `g_*` — confirmed global state.
 - `searchRecords` / `lookupBuiltInRec` — record-table machinery.
+---
+
+# R0-A.3 ledger (2026-11-18)
+
+Full per-batch audit: `r0a3-worklist.md`; report: `12-r0a3-semantic-enrichment.md`.
+
+## Function renames (56) — all read-back verified
+
+| Old | New | Addr | Evidence (short) |
+|---|---|---|---|
+| FUN_00427d80 | bmpBlitToSurface | 0x427D80 | clipped 1–32bpp blit, 0x44e5xx dispatch, magic 0xF4DA120B |
+| FUN_004258d0 | bmpGetWH | 0x4258D0 | reads obj+0/+4 after magic check |
+| FUN_00425880 | paintSurfaceRelease | 0x425880 | clears magic, frees pixels@+0x18 + obj |
+| FUN_004259d0 | bmpSetOffset | 0x4259D0 | writes +0x20/+0x24 |
+| FUN_00425c30 | bmpSetFillModeRaw | 0x425C30 | raw write +0x38 |
+| FUN_00426610 | bmpBlitPair | 0x426610 | wrapper → FUN_004263b0 |
+| FUN_0040ce90 | textWidgetGetRect | 0x40CE90 | magic 0x1688173@+8, rect +0x78..84, dirty +0x88 |
+| FUN_0040cbb0 | textWidgetStateGet | 0x40CBB0 | IsWindowVisible/GetFocus → 1/3/4 |
+| FUN_0042a170 | widgetBaseFill | 0x42A170 | style-2 pattern/solid fill |
+| FUN_0042d190 | inkSlotDraw | 0x42D190 | slot → ink tbl/blobB subtable → 0x43f260 |
+| FUN_00425c60 | bmpSetFillMode | 0x425C60 | modeMap → +0x38 |
+| FUN_00427200 | bmpTextDraw | 0x427200 | glyph raster 0x44dfe0, font obj, flags |
+| FUN_00425a90 | bmpSetClip | 0x425A90 | clamped clip @+0x28..34 |
+| FUN_0042c270 | bmpStateIconDraw | 0x42C270 | 3 state bits → gStyleRec slots |
+| FUN_0043bc00 | compositeWidgetPaint | 0x43BC00 | 9-slice base + gated sub-features |
+| FUN_00410960 | labelWidgetPaint | 0x410960 | text rect → bmp → fill → widgetBlit (win +0x04) |
+| FUN_004514c0 | iconGridPaint | 0x4514C0 | same template (win +0x04) |
+| FUN_00446770 | listRowPaint | 0x446770 | same template (win +0x00) |
+| FUN_004101c0 | labelWidgetFill | 0x4101C0 | font metrics + fontTextDraw + marker |
+| FUN_00451260 | iconGridFill | 0x451260 | 15×12 u16 grid, inkSlotFetch + bmpInkBlit |
+| FUN_004463e0 | listRowFill | 0x4463E0 | 22px rows, pstr row texts |
+| FUN_004459e0 | rectIntersects | 0x4459E0 | AABB strict |
+| FUN_0043b5e0 | inkSlotFetch | 0x43B5E0 | u16 slot → %IKN bytes |
+| FUN_00426e00 | bmpInkBlit | 0x426E00 | %IKN blit mode 0x30 |
+| FUN_0042b6c0 | bmpRowText | 0x42B6C0 | row text + selected flag |
+| FUN_00426f50 | bmpTextDraw2 | 0x426F50 | pos-based text draw |
+| FUN_0042a8c0 | bmpSetCellState | 0x42A8C0 | 32B cell state |
+| FUN_0042a200 | bmpSetMetrics | 0x42A200 | 4-word metrics into surface |
+| FUN_00424550 | fontTextDraw | 0x424550 | font + surface metrics + rect |
+| FUN_004230c0 | fontMetricsGet | 0x4230C0 | 16B metrics |
+| FUN_0041e8a0 | labelMarkerDraw | 0x41E8A0 | secondary marker |
+| FUN_00451210 | iconGridCellState | 0x451210 | cell active test |
+| FUN_00403510 | docSaveAs | 0x403510 | dialog exec → file swap → hapSaveEntry |
+| FUN_004044b0 | hapDImportFromFile | 0x4044B0 | two-phase, 0xD8 D-v2 copy |
+| FUN_004179d0 | openDialogExec | 0x4179D0 | IFileDialog exec → fileRec* |
+| FUN_00417c50 | fileDialogClose | 0x417C50 | |
+| FUN_00417c90 | fileDialogCancel | 0x417C90 | |
+| FUN_004178b0 | fileDialogCreateSave | 0x4178B0 | |
+| FUN_00417800 | fileDialogCreateOpen | 0x417800 | |
+| FUN_0041a270 | fileClose | 0x41A270 | CloseHandle + frees rec |
+| FUN_00445080 | msiBlobToBmp | 0x445080 | %MSI → hapBitmapObj |
+| FUN_004282a0 | bmpObjSetTransparency32 | 0x4282A0 | 32bpp trans path |
+| FUN_00439cc0 | fmtSignedInt | 0x439CC0 | abs + 0x10000 → fmtInt |
+| FUN_0041bc50 | memAllocZeroed | 0x41BC50 | GlobalAlloc(0x40) |
+| FUN_0041bcd0 | memResize | 0x41BCD0 | GlobalReAlloc(2) |
+| FUN_004263b0 | bmpFillRect | 0x4263B0 | alpha-blend rect fill |
+| FUN_004457c0 | builtinRecCmp | 0x4457C0 | registry comparator |
+| FUN_0041c4c0 | tzOffsetMinutes | 0x41C4C0 | signed tz minutes |
+| FUN_00434900 | filetimeBreakdown | 0x434900 | ns → 20B fields |
+| FUN_00434ba0 | timeFieldsFormat | 0x434BA0 | fields → string |
+| FUN_004431b0 | rectClipIntersect | 0x4431B0 | 9-param multi-rect clip |
+| FUN_00441d80 | bmpBlitPalette | 0x441D80 | 1–8bpp path, 0x4415xx |
+| FUN_00441320 | paletteExtract | 0x441320 | palette node-list extraction |
+| FUN_0041ccc0 | dibInfoDecode | 0x41CCC0 | classic DIB → 32bpp surface |
+
+## Global renames (7)
+
+gStyleRec 0x466954, gStyleDef 0x466950, gInkTbl 0x466964, gInkCount 0x466968,
+gIconGrid 0x488AC0, gMainWindow 0x466294, gAllocCount 0x466BAC.
+
+## Types
+
+- `hapDibSrc` (32 B) — w,h,bpp,rowBytes,palCount,flags,pixels,palette — applied to bmpBlitToSurface + msiBlobToBmp.
+- `hapTextObj` (140 B) — magic 0x1688173@8, hwnd@0xC, fontIdx@0x70, rect@0x78, dirty@0x88 — applied to textWidgetGetRect.
+- `hapBitmapObj` replaced → 18 fields/72 B: clip rect @0x28..34, fillMode @0x38 (corrections to R0-A.2 model).
+
+## Corrections superseding earlier entries
+
+- %MSI field map: hotspot @0x0C/0x0D, bpp @0x0E (supersedes 0x0D/0x0E/… draft in R0-A.2 notes).
+- hapBitmapObj @0x28..0x34 = clip rect (not surfW/H); @0x38 = fillMode (not second trans color).
+- pairRecordBuild bpp selection is palette-count based (paletteExtract), not a raw format probe.

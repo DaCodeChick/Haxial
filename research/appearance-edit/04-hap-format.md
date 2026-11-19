@@ -511,3 +511,11 @@ complete default skin used at build time / older path).
    path Ghidra didn't associate; the 5 xref sites of blob B are all documented).
 6. **C preamble** (0x40 zero bytes) — reserved or version-dependent.
 7. **doc+0x1B8** (header 0x08) — always 0 in all 123 files examined.
+## Appendix: R0-A.3 additions/corrections
+
+- %MSI field map **corrected**: +0x0C hotspotX, +0x0D hotspotY, +0x0E bpp (2/8/32), +0x0F palCount-1 (transColor out = palette[1]).
+- Header directory word map (word idx, bytes): 0x2C A-cap(0x88), 0x30 A-size, 0x34/0x38 C off/size, 0x3C/0x40 D, 0x44/0x48 E, 0x4C/0x50 F, 0x54/0x58 G; Block A payload @0x88.
+- C section: 64B (0x10-word) header before the 512-slot offset table (min size 0x840).
+- F section records join the same runtime ink list as v1 E volume inks.
+- v1 E rows may hold two blobs (layer A/B) → in-memory pair record (live surface pointers; storage bpp auto from palette size <3→1, <5→2, <17→4, <257→8, else 24).
+- `dibInfoDecode` (0x41ccc0) decodes a classic Windows DIB (BITMAPINFO, BI_RGB, 24bpp or ≤8bpp+palette, negative height = bottom-up); resource origin unresolved (S1).

@@ -131,3 +131,12 @@ Status: **R0-A.2 Phases 1–4 complete**. Next: UI-layer milestone (remaining
 `widgetBlit` painters, DIB builder expansion path, D 54-role table,
 remaining screenshots) — see `07-open-questions.md` and
 `11-widget-geometry-and-rendering.md` §6.
+
+## Session R0-A.3 (2026-11-18) — COMPLETE
+
+Bidirectional call-graph semantic enrichment over the HAP layer + render pipeline.
+- Traversal: 84 seeds → 561 nodes (477 discovered), 223 classified, 258 hop-2 meaningful, 3 tiers.
+- Ghidra (all read-back verified): **56 function renames, 7 global renames, 59 typed prototypes (+1 partial), 67 local renames, 86 comments, 2 new types (hapDibSrc, hapTextObj), hapBitmapObj → 18 fields/72 B**.
+- Key: DIB engine (two blit paths + rectClipIntersect + alpha-blend fill), font-glyph text raster, icon-grid/state-icon machinery, %MSI field map (corrected), pair-record auto-bpp, classic-DIB decoder, file layer + error + pstr/mem/fmt layers fully gated, doc lifecycle + open/save/import pipelines.
+- Docs: `12-r0a3-semantic-enrichment.md` (report + coverage audit), `r0a3-worklist.md` (durable checkpoint, per-batch audit log), `06-symbol-ledger.md` (R0-A.3 section).
+- Deferred (documented): 0x41A300 + 0x43A610 decompiles (decompiler congestion; task ids saved), dibInfoDecode resource origin (S1), tier-B UI builders.
