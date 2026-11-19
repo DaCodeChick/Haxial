@@ -129,6 +129,86 @@ None — all 45 targets were auto-generated `FUN_*`/`DAT_*` symbols or new label
 No structure/enum types were created or modified in this session.
 
 
+## Session R0-A.2 — Semantic enrichment (2026-11-18)
+
+Evidence document: `09-ghidra-semantic-enrichment.md`. All 24 types read back
+via `get_data_type` (size-verified); all 34 prototypes read back via
+`get_function_prototype` (zero residual `param_N`/`undefined`); all 25
+comments read back via `get_function_comment`; all 54 rename-batch items
+reported per-item success; data applications verified by re-decompilation of
+`hapESectionReadV1`, `hapDSectionReadV1` (re-typed globals now indexed
+properly).
+
+### Function renames
+
+| Address | Old name | New name | Confidence | Evidence | Verified |
+|---|---|---|---|---|---|
+| `0x434420` | `FUN_00434420` | `memZero` | CONFIRMED | zeroes 0x88 header in `hapSerialize`; 0x20 desc in `hapEBlobParse` | batch OK + re-decompile |
+| `0x4257c0` | `FUN_004257c0` | `bmpObjCreate` | CONFIRMED | alloc 0x48, w/h + magic @+0x44 | batch OK + decompile |
+| `0x428210` | `FUN_00428210` | `bmpObjSetTransparency` | CONFIRMED | magic check, color @+0x3C, flag @+0x40 | batch OK + decompile |
+| `0x401000` | `FUN_00401000` | `docCreate` | CONFIRMED | alloc 0x1C0, magic 'ukod' (0x646F6B75), builds sub-objects | batch OK + decompile |
+| `0x431270` | `FUN_00431270` | `strObjGetData` | CONFIRMED | (strObj+0x3C,&len,NULL)→ptr; 4× in `hapWriteBlockA` | batch OK + decompile |
+| `0x41bba0` | `FUN_0041bba0` | `memAlloc` | CONFIRMED | alloc in `hapSerialize`, freed by `memFree` | batch OK + decompile |
+| `0x41bca0` | `FUN_0041bca0` | `memFree` | CONFIRMED | `memFree(&ptr)`; ptr nulled after | batch OK + decompile |
+| `0x41c440` | `FUN_0041c440` | `filetimeNow` | PROBABLE | 64-bit FILETIME source for tsPrev/tsLast (parser + save path) | batch OK + decompile |
+| `0x41a450` | `FUN_0041a450` | `fileNameExtract` | PROBABLE | (fileRec*,buf,0xFF)→name len in `hapLoadEntry` | batch OK + decompile |
+
+### Data renames / new labels
+
+| Address | Old name | New name | Confidence | Evidence | Verified |
+|---|---|---|---|---|---|
+| `0x45F820` | `DAT_0045f820` | `gOpenDocListHead` | PROBABLE | open-doc list head: node +0x0C doc, +0x28 next, +0x90 win, +0x19D name | batch OK + decompile |
+
+### Function renames (render path, R0-A.2 Phase 4)
+
+| Address | Old name | New name | Confidence | Evidence | Verified |
+|---|---|---|---|---|---|
+| `0x40cf50` | `FUN_0040cf50` | `winBlitDib` | CONFIRMED | only GDI call site: magic 0xFE9778D check, GetDC/SetDIBitsToDevice/ReleaseDC, clip pass | batch OK + re-decompile |
+| `0x40e4d0` | `FUN_0040e4d0` | `dcBlitDib` | CONFIRMED | bare HDC 32bpp top-down DIB blit, second SetDIBitsToDevice call site | batch OK + re-decompile |
+| `0x40d160` | `FUN_0040d160` | `widgetBlit` | CONFIRMED | `winBlitDib` + paint-context release; 5 painters call it | batch OK |
+| `0x409fc0` | `FUN_00409fc0` | `labelPaint` | CONFIRMED | label magic 0x5655D881; per-line temp bitmap + text raster + widgetBlit | batch OK + re-decompile |
+
+(4 function comments added to these in the same batch, read-back verified.)
+
+### Data type applications (see 09 §5)
+
+| Address | Type applied | Verified |
+|---|---|---|
+| `0x45F830` | `builtinRezHeader` (label `gBuiltinRezHeader`) | set OK |
+| `0x45F848` | `builtinAppearanceRec[9]` (label `gBuiltinAppearanceRegistry`) | set OK |
+| `0x463C7C` | `byte[54]` | re-decompile of `hapDSectionReadV1` (`hapDPermuteTable[uVar1]`) |
+| `0x464100` | `uint[28]` | re-decompile of `hapESectionReadV1` (`hapV1EWidgetRowMap[entry->tableIndex]`) |
+| `0x4642E0` | `uint[52]` | re-decompile (walked as `uint*` pairs) |
+| `0x466DD4` | `byte[70304]` | set OK |
+| `0x4683D4` | `byte[40336]` | set OK |
+
+### Types created (24; full list in 09 §2)
+
+Enums `hapBpp`, `hapIknBpp`, `hapMsiFormat`, `hapSecondaryMode`; typedef
+`hapColor`; disk structs `hapHeaderDisk`, `hapBlockAFixedDisk`,
+`hapERowV1Disk`, `hapCBlobHdrDisk`, `hapCBlobHdrExtDisk`, `hapEBlobHdrDisk`,
+`hapIknHdrDisk`, `hapIknSubHdrDisk`, `hapMsiHdrDisk`; runtime structs
+`hapResEntry`, `hapBitmapDesc`, `hapBitmapObj`, `fileRec`,
+`builtinRezHeader`, `builtinAppearanceRec`, `hapCSubObj`, `hapDSubObj`,
+`hapESubObj`, `hapGSubObj`, `hapDoc`. All program-local under `/haxial/hap`.
+
+### Signatures/prototypes (34)
+
+Full table in 09 §3 — all read-back verified. Includes parameter typing to
+`hapDoc*`/`fileRec*`/`hapDSubObj*`/`hapBitmapObj*` and return types.
+
+### Local variable renames (45) and comments (25)
+
+Full lists in 09 §4.2/§4.3 — all batch-verified / read-back verified.
+
+### Structure field rename (1)
+
+`hapDoc.pad_64 → strObjVersion` (second Block A string object; 09 §6).
+
+### Protected GDT-origin definitions encountered (R0-A.2)
+
+None — all created types are program-local under `/haxial/hap`.
+
 ## Naming conventions used
 
 - `pstr*` — Pascal (length-prefixed byte) string helpers.

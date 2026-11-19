@@ -88,3 +88,46 @@ builder (see 07-open-questions.md).
 Status: **complete for R0-A.1 scope**. Next: runtime cross-check (v1 E row
 map, F/G consumers), renderer pass (widget state table / DIB model), DDE
 (see `07-open-questions.md`).
+### Session R0-A.2 (Phase 1–4) — 2026-11-18 — Semantic enrichment, rendering model, visual + cross-impl audit
+
+- **Ghidra semantic enrichment (HAP layer)** — 24 program-local types created
+  and read-back verified (enums `hapBpp`/`hapIknBpp`/`hapMsiFormat`/
+  `hapSecondaryMode`, typedef `hapColor`, 9 on-disk structs, 11 runtime
+  structs incl. `hapDoc` 448 B); 34 prototypes applied + read-back verified
+  (parameters typed to `hapDoc*`/`fileRec*`/`hapBitmapObj*`); 45 local
+  variable renames; 9 + 4 function renames (`memZero`, `bmpObjCreate`,
+  `bmpObjSetTransparency`, `docCreate`, `strObjGetData`, `memAlloc`,
+  `memFree`, `filetimeNow`, `fileNameExtract`; render path `winBlitDib`,
+  `dcBlitDib`, `widgetBlit`, `labelPaint`); 25 + 4 function comments
+  read-back verified; 7 global data types applied (incl. `byte[70304]`/
+  `byte[40336]` built-in blobs); `hapDoc.pad_64 → strObjVersion`. See
+  `09-ghidra-semantic-enrichment.md` (coverage matrix §8) and
+  `06-symbol-ledger.md` (R0-A.2 sections).
+- **Skin rendering model (CONFIRMED)**: the ONLY GDI import is
+  `SetDIBitsToDevice`; all rendering = composited 32bpp top-down DIB blits
+  (28-byte descriptor [w][h][?][stride][?][pixels]); no scaling, no alpha,
+  no GDI text (bitmap-font rasterization into temp bitmaps). **Nine-patch
+  (9-slice) model CONFIRMED** via C-blob extended header (flags&0x10 → 0x20
+  header: [u32 colour][capL,T,R,B][insetL,T,R,B]) — cap arithmetic verified
+  on all 18 extended blobs of the built-in v2 appearance (0/4101 corpus v1
+  blobs extended → v2 feature). See `11-widget-geometry-and-rendering.md`.
+- **Visual evidence**: 22 committed screenshots inventoried; 6 examined in
+  detail (9-patch button editor, Preview GUI Items set, BeOS info tab).
+  Info tab confirms Block A = Name/Version/Creator/Description + two
+  timestamps + Scale option. See `10-visual-evidence.md`.
+- **Cross-implementation audit** (read-only): OpenKDX reconciled — header
+  bytes identical; their 13-slot directory framing disproven by the built-in
+  v2 `01 01` scale nibbles (our 6-slot @ 0x2C stands); **color encoding
+  corrected** to on-disk `[00][RR][GG][BB]` (GDI DIB pixel = bswap =
+  0x00BBGGRR); flag bytes are encoding selectors, presence = non-zero
+  length (80/111 files E_size=0, 73 C_size=0). KDX (Scott Anderson) =
+  protocol-only, no HAP work. See `../cross-reference/`.
+- **Format corrections applied to `04-hap-format.md`**: §4 (directory
+  framing, flag semantics), §6 (extended C-blob header + nine-patch),
+  §7.2/§7.3 (color byte order + raw samples), §12/§13.
+- Ghidra project saved after all mutations.
+
+Status: **R0-A.2 Phases 1–4 complete**. Next: UI-layer milestone (remaining
+`widgetBlit` painters, DIB builder expansion path, D 54-role table,
+remaining screenshots) — see `07-open-questions.md` and
+`11-widget-geometry-and-rendering.md` §6.

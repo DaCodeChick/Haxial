@@ -72,8 +72,8 @@ falls back to built-in defaults where applicable (§8).
 | 0x08 | 4 | u32 BE | → doc+0x1B8 (semantics unconfirmed; 0 in all 111 corpus files and both built-in blobs) | parser copies to doc+0x1B8 |
 | 0x0C | 1 | u8 | option high nibble (0 = none; 1–15) | §4.1 |
 | 0x0D | 1 | u8 | option low nibble (0 = none; 1–15) | §4.1 |
-| 0x0E | 0x1E | — | reserved (zero) | writer memset 0x88 |
-| 0x2C | 4 | u32 BE | A = Block A offset (always 0x88) | writer `0x88000000` |
+| 0x0E | 0x1E | — | reserved (zero) | NOT section slots 0–3: built-in v2 blob A carries `01 01` at 0x0C/0x0D (writer's default scale option), disproving a 13-slot directory at 0x0C (see cross-reference/00-openkdx.md §1); zero in all 111 v1 corpus files |
+| 0x2C | 4 | u32 BE | A = Block A offset (always 0x88) — start of the 6-slot section directory (A,C,D,E,F,G at 0x2C..0x58) | writer `0x88000000` |
 | 0x30 | 4 | u32 BE | B = Block A size (≥ 0x34) | writer FUN_004022E0 |
 | 0x34 | 4 | u32 BE | C offset | writer |
 | 0x38 | 4 | u32 BE | C size (0 if absent) | |
@@ -87,11 +87,16 @@ falls back to built-in defaults where applicable (§8).
 | 0x58 | 4 | u32 BE | G size | |
 | 0x5C | 0x20 | — | reserved (zero) | writer memset |
 | 0x7C | 1 | flag | Block A valid (must be 1 else defaults) | parser |
-| 0x7D | 1 | flag | C section present (1) | parser |
+| 0x7D | 1 | flag | C encoding (1). Presence is C_size≠0, **not** this flag — 73/111 files have C_size=0 with flag still 1 | parser + corpus |
 | 0x7E | 1 | flag | D encoding: 1 = v1 permutation, 2 = v2 direct | parser |
-| 0x7F | 1 | flag | E encoding: 1 = v1 192-row, 2 = v2 %IKN | parser |
-| 0x80 | 1 | flag | F section enabled (v1: 0, v2: 1) | parser |
-| 0x81 | 1 | flag | G section enabled (v1: 0, v2: 1) | parser |
+| 0x7F | 1 | flag | E encoding: 1 = v1 192-row, 2 = v2 %IKN. Presence is E_size≠0 (80/111 files E_size=0) | parser + corpus |
+| 0x80 | 1 | flag | F enable (v1: 0, v2: 1) | parser |
+| 0x81 | 1 | flag | G enable (v1: 0, v2: 1) | parser |
+
+**Flag/presence note (CONFIRMED, R0-A.2 corpus scan):** all 111 v1 files carry
+identical bytes `01 01 01 01 00 00` at 0x7C..0x81 even when C/E sections are
+empty — the six bytes are encoding selectors / enables, and a section is
+present iff its directory **length** is non-zero.
 | 0x82 | 6 | — | reserved (zero) | |
 
 ### 4.1 Option nibbles (0x0C/0x0D) — PROBABLE
@@ -184,6 +189,38 @@ Corpus: 13–127 of 512 slots used per file.
 only — the in-file order of (main, secondary, palette) is not independently
 verifiable from the parser; corpus samples place palette last (PROBABLE).
 
+**Extended header (flags bit 0x10) — nine-patch geometry.** The 12 extra
+bytes (`+0x08..+0x13`) are decoded from the 18 extended-header blobs in the
+built-in v2 appearance (none occur in the 111-file v1 corpus):
+
+```
++0x08  4  u32  field0        ; 0x00FFFFFF or 0x00000000 in all samples (semantics open)
++0x0C  1  u8  capL  (left cap width, px)
++0x0D  1  u8  capT  (top cap height, px)
++0x0E  1  u8  capR  (right cap width, px)
++0x0F  1  u8  capB  (bottom cap height, px)
++0x10  1  u8  insetL         ; content inset (PROBABLE — editor "Left Inset")
++0x11  1  u8  insetT
++0x12  1  u8  insetR
++0x13  1  u8  insetB
+```
+
+**Cap rule CONFIRMED on all 18 samples** (valid nine-slice: `capL+capR < W` and
+capT+capB < H, i.e. centre ≥ 1×1): e.g. 11×11→(5,5,5,5), 17×17→(8,8,8,8),
+26×8→(3,3,22,4), 5×7→(2,0,2,0) (centre 1×7), 7×5→(0,2,0,2) (centre 7×1).
+14/18 are "tight" (centre exactly 1×1); the 4 strips show the centre may be
+larger — tightness is a property of those images, not a format requirement.
+Slot 26×8 disambiguates the byte order: only `[L,T,R,B]` yields a valid
+assignment (R=22 must be horizontal, B=4 vertical). This is the nine-patch
+(9-slice) model: four corners + four edges copied fixed at draw time; the
+centre region stretched to the widget size. All 18 extended blobs also carry
+secondary-mode 1 (no secondary pixel buffer) — in v2 the geometry bytes
+replace the v1 second row layer. The editor UI
+(refs/screenshots/appearance-edit/app-beos/button-edit-uses-9patch.png)
+exposes exactly these fields (Left/Right/Top/Bottom Cap Width/Height, Inset,
+Transparent Color, Text Color, Transition Start/End). See
+`11-widget-geometry-and-rendering.md` §2.
+
 Corpus samples: 1/2/4/8 bpp all occur; W/H from 11×11 (built-in) to 280×1600
 (Zurie_Constructicons_large); palettes 1–255.
 
@@ -208,16 +245,30 @@ express all 54 slots on its own (same class of constraint as §9.3).
 
 ### 7.2 v2 (flag 0x7E = 2) — CONFIRMED (code + built-in sample)
 
-On disk: **54 × u32 LE color words** (D_size = 0xD8), copied verbatim into the
-document (no permutation). Built-in sample (Evil Chiaroscuro) first words:
-`00000000 66666600 33333300 11111100 ffffff00 0000ff00 …` — a grayscale ramp
+On disk: **54 × u32 color words, bytes `[00][RR][GG][BB]`** (D_size = 0xD8),
+copied verbatim into the document (no permutation). Built-in sample
+(Evil Chiaroscuro) first words, raw on-disk bytes:
+`00000000 00666666 00333333 00111111 00ffffff 00ff0000 …` — a grayscale ramp
 plus accent colors, consistent with the encoding below.
 
-### 7.3 Color encoding — CONFIRMED
+### 7.3 Color encoding — CONFIRMED (corrected R0-A.2 after OpenKDX audit)
 
-Colors are u32 LE values in **0x00BBGGRR** (GDI BGR; alpha byte 0x00). Verified
-against built-in values (`0x00FF0000` = red, `0xFFFFFF00` = white, `0x00666666`
-= neutral gray 102/102/102) and R0-A built-in default analysis.
+**On-disk byte order: `[00][RR][GG][BB]`** — i.e. `00 RR GG BB` reading the
+bytes left to right (equivalently the big-endian u32 `0x00RRGGBB`). Same in v1
+(204-word) and v2 (54-word) D sections, and in C/%IKN palettes. Corpus
+evidence: `BeOS.hap` D word 1 = `00 cc cc cc`; `Blue Fragmentation.hap`
+D word 1 = `00 50 6f 9f` (R<G<B — blue, matches name); `Ashen.hap` D word 1
+= `00 ff ff ff`; identical order in the built-in v2 blob. This matches
+OpenKDX's `00 RR GG BB` (cross-reference/00-openkdx.md §3).
+
+Derived forms (do not conflate):
+- native little-endian x86 load of the 4 bytes = `0xBBGGRR00`
+- in-memory **GDI 32bpp DIB pixel** = `0x00BBGGRR` (BI_RGB BGR, high byte
+  0x00) — the only blit is `SetDIBitsToDevice` (BI_RGB 32bpp), so DIB pixels
+  are GDI-ordered; a **bswap32** relates the on-disk load to the DIB pixel.
+
+(The R0-A label "u32 LE value 0x00BBGGRR" was wrong: it stated the in-memory
+GDI form as if it were the on-disk LE value.)
 
 ## 8. Section E — per-widget icons
 
@@ -419,7 +470,7 @@ complete default skin used at build time / older path).
 |---|---|
 | header offsets/sizes/flags, all table entries | **big-endian** (code bswap32s) |
 | version field | bytes `00 01` / `00 02` (BE u16) |
-| color words (D, palettes) | **little-endian u32**, value 0x00BBGGRR |
+| color words (D, palettes) | **bytes `[00][RR][GG][BB]`** (= BE u32 0x00RRGGBB; native LE load 0xBBGGRR00; GDI DIB pixel = bswap = 0x00BBGGRR) — see §7.3 |
 | bitmap W/H in blob headers | **big-endian u16** |
 | pixel rows | native, MSB-first within bytes (standard) |
 | %IKN/%MSI magic | bytes are the ASCII spelling (`%IKN`, `%MSI`, `%HAP`, `%FNT`) |
@@ -433,7 +484,7 @@ complete default skin used at build time / older path).
 | C section + C blob format | CONFIRMED | FUN_004070F0/0x00406E20 + 38/38 corpus files |
 | D v1 (204 words + 0x463C7C permutation + default fallback) | CONFIRMED | FUN_00404460 + table dump + 111/111 files |
 | D v2 (54 words direct) | CONFIRMED | FUN_00404410 + writer + built-in blob A |
-| Color encoding 0x00BBGGRR | CONFIRMED | built-in values + R0-A |
+| Color encoding: on-disk `[00][RR][GG][BB]` (GDI DIB pixel 0x00BBGGRR) | CONFIRMED | raw corpus bytes (BeOS/Blue Fragmentation/Ashen) + built-in v2 blob + OpenKDX cross-check |
 | E v1 192-row layout + pool geometry | CONFIRMED | FUN_004048D0 + 31/31 corpus files |
 | E v2 [count][table][%IKN] | CONFIRMED | FUN_00405210/0x00405120 + built-in blob A (35/35) |
 | v1 E row map is editor-internal; 1.400 loads nothing from corpus v1 E | CONFIRMED | FUN_00405310 disassembly + shipped tables + corpus row stats |

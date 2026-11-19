@@ -91,3 +91,44 @@ new questions from R0-A.1 are in §4.
    "Open/Save Appearance File" dialogs to `hapLoadEntry`/`hapSaveEntry`.
 5. **Capture a v2 save** (run the editor on a VM or hand-assemble from the
    spec) to close the write-path validation loop.
+
+## 5. R0-A.2 status (2026-11-18)
+
+### Resolved this session
+- **Color byte order** (was: "0x00BBGGRR" label): on-disk bytes are
+  `[00][RR][GG][BB]` (BE u32 0x00RRGGBB); GDI DIB pixel = bswap32 of the
+  native load = 0x00BBGGRR. Confirmed by raw corpus bytes + OpenKDX
+  cross-check. `04-hap-format.md` §7.3 corrected.
+- **Nine-patch (9-slice) model**: C-blob extended header (flags&0x10) =
+  [u32 colour][capL,capT,capR,capB][insetL,insetT,insetR,insetB]; verified on
+  18/18 built-in v2 blobs (cap arithmetic, [L,T,R,B] order); v2-only feature
+  (0/4101 v1 corpus blobs). Editor UI fields match exactly. §6 + 11 §2.
+- **Rendering architecture**: only GDI import = SetDIBitsToDevice; composited
+  32bpp top-down DIB blits, no scaling/alpha/GDI text. Render functions named
+  (`winBlitDib`/`dcBlitDib`/`widgetBlit`/`labelPaint`). 11 §1.
+- **Flag semantics**: 0x7C..0x81 are encoding selectors, always
+  `01 01 01 01 00 00` in v1 corpus; presence = non-zero section length
+  (80/111 E_size=0, 73/111 C_size=0). `04` §4 corrected.
+- **Section directory framing**: 6 slots @ 0x2C..0x58 confirmed; OpenKDX's
+  13-slot @ 0x0C framing disproven by built-in v2 `01 01` scale nibbles.
+  cross-reference/00 §1.
+- **Block A r3 display role**: "Creator" (info-tab screenshot).
+- `FUN_00434420` (item 12) = `memZero` (renamed this session).
+
+### New / carried questions
+- **DIB builder (skin→32bpp expansion)**: palette + transparent-index +
+  9-slice expansion functions in the 0x425xxx–0x42E3xx neighborhood
+  (`FUN_00425C30` fill?, `FUN_00426610` text raster?, `FUN_0042A170`
+  flagged text, `FUN_0042E370`/`FUN_0042DC90`/`FUN_004459E0` clip helpers) —
+  UI-layer milestone.
+- **Remaining 4 widget painters** (0x410960, 0x43BC00, 0x4514C0, 0x446770) —
+  button/tick/scroll/list geometry math; adaptive scrollbar rules.
+- **D 54-role table**: which role index each widget consumes (color grid
+  screenshot `colors.png` = visual reference).
+- **C-blob ext header**: semantics of the u32 colour (white/black in
+  samples — backing/"transition underneath"?), and the inset group (one
+  odd sample pair (5,0,5,0)/(0,5,0,5)).
+- **`labelPaint` helper IDs**: `FUN_0040CE90` (line split), `FUN_004093E0`
+  (resource select: type 7, modes 0/1/2/6), `.fnt` font rasterizer location.
+- Carried: DDE (item 4), subsystem inits (9), WndProc (10), formatters (11),
+  string class table (13), state-record fields (3), registry byte-swaps (5).
