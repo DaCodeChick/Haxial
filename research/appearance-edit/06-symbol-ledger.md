@@ -361,3 +361,88 @@ buttonWidgetPaint, buttonHoverSet, inkBlitCore, fmtByteCount (19).
 - `gColorRoleNames` @ 0x461EC8 (data, byte + plate comment): 53 D-role names + 6 UTF-8 group headers, 4-byte-aligned pstrs; order = D role index.
 - `gEIconNames` @ 0x462E70 (data, plate comment): 155 E icon slot names, 4-byte-aligned pstrs.
 - **Correction**: R0-A.3 "provider vtable globals 0x48D30C–0x48D41C" = .idata IAT entries (unbound; PE .idata VA 0x8D000, 0xCAC bytes). Not runtime objects; no further open item.
+
+## Session S2 — 2026-11-19/20 (FourCC records, widget identity, class registry)
+
+Evidence base: `17-s2-fourcc-records.md` (Batches A1+A2). All renames read-back
+verified (symbol probes + disassembly constant checks).
+
+### Function renames (21 new + 3 corrections = 24 ops)
+
+| Old | New | Address | Evidence |
+|---|---|---|---|
+| FUN_00409150 | widgetClassLookup | 0x409150 | fast-path subtract-chain (7 class constants) + dynamic table scan vs [0x466B58]/[0x466B5C] |
+| FUN_00409100 | widgetClassRegister | 0x409100 | search (0x440B70) + insert (0x440790) into same table; 11 call sites |
+| FUN_00408750 | widgetInstantiate | 0x408750 | full decode: class lookup, alloc max(classSize,0x38), magic 0x5655d881, geom slots, classInit/attach, instance-table registration, child recursion |
+| FUN_00408B60 | vuuPayloadParse | 0x408B60 | %VUU magic/version/VWIN-first validation; size at payload+0x1C (u32BE) |
+| FUN_00408ED0 | windowCreateFromBuiltIn | 0x408ED0 | lookupBuiltInRec(VWIN,…) → vuuPayloadParse; 6 window callers |
+| FUN_00412490 | menuCreateFromBuiltIn | 0x412490 | lookupBuiltInRec(MENU,…) → menuPayloadParse |
+| FUN_00445900 | lookupBuiltInRecSoft | 0x445900 | %REZ lookup, NULL-tolerant |
+| FUN_00429C70 | scaleQuad | 0x429C70 | dst[i] = src[i]*gScaleNum/gScaleDen (4×i16) — the `scal` menu's effect |
+| FUN_00412060 | menuPayloadParse | 0x412060 | %MNU header/version/item-count/pstr decode (offsets confirmed; item-field semantics open) |
+| FUN_00408670 | widgetAllocInit | 0x408670 | window-object alloc: scaleQuad + FUN_0040BFA0 + magic + WIND class binding |
+| FUN_004360D0 | classRegSepr | 0x4360D0 | pushes 0x4677B0 → widgetClassRegister |
+| FUN_004361F0 | classRegBpmn | 0x4361F0 | pushes 0x467874 |
+| FUN_00435E40 | classRegBox | 0x435E40 | pushes 0x4676EC |
+| FUN_00436AE0 | classRegIkbt | 0x436AE0 | pushes 0x467938 |
+| FUN_00437850 | classRegTikb | 0x437850 | pushes 0x467AC0 |
+| FUN_00437C90 | classRegPrgs | 0x437C90 | pushes 0x467B84 |
+| FUN_00437EE0 | classRegSldr | 0x437EE0 | pushes 0x467C48 |
+| FUN_0043CEB0 | classRegIkon | 0x43CEB0 | pushes 0x468310 |
+| FUN_004229A0 | classRegImgs | 0x4229A0 | pushes 0x466ECC |
+| classRegRolr | classRegKolr | 0x437220 | **correction**: pushes 0x4679FC = KOLR (tag RLOK), not "ROLR" |
+| classRegRabl | classRegMbar | 0x43CD30 | **correction**: pushes 0x46824C = MBAR (tag RABM), not "RABL" |
+| classRegRldr | classRegSldr | 0x437EE0 | **correction**: tag at 0x467C48 is RDLS = SLDR reversed |
+
+### Data renames (28 new + 6 corrections/additions = 34 ops)
+
+| Old | New | Address | Evidence |
+|---|---|---|---|
+| (unnamed) | rezBuiltinHeader | 0x45F830 | "%REZ" + version 1 + count 9 |
+| (unnamed) | rezBuiltinRecords | 0x45F848 | 9 × 20 B records; binary-searched |
+| (unnamed) | gClassTblPtr | 0x466B58 | runtime class pointer table |
+| (unnamed) | gClassCount | 0x466B5C | table count |
+| (unnamed) | dokuInstTable | 0x45F048 | 19 {name4cc,slot,0} entries for doku window |
+| (unnamed) | prvwInstTable | 0x45F57C | 29 entries |
+| (unnamed) | epxmInstTable | 0x465A9C | 18 entries |
+| (unnamed) | emikInstTable | 0x465FB4 | 9 entries |
+| (unnamed) | efikInstTable | 0x46440C | 8 entries |
+| (unnamed) | esikInstTable | 0x4640C4 | 6 entries |
+| (unnamed) | classVuu | 0x4660C4 | tag !UUV (VUU! rev), size 0x38 |
+| (unnamed) | classWind | 0x466188 | tag DNIW (WIND rev), size 0x28; direct ref 0x408705 — **new in A2** |
+| (unnamed) | classKntr | 0x466690 | tag RTNK, size 0x70 |
+| (unnamed) | classStsl | 0x466D44 | tag STSL (canonical unknown), size 0x4C; ref 0x420C56 — **new in A2** |
+| (unnamed) | classTslc | 0x466E08 | tag TSLC, size 0x54; ref 0x421886; PROBABLE D-section class — **new in A2** |
+| (unnamed) | classImgs | 0x466ECC | tag SGMI, size 0x64 |
+| (unnamed) | classButn | 0x4674A0 | tag NTUB, size 0x40 |
+| (unnamed) | classKlbl | 0x467564 | tag LBLK, size 0x48 |
+| (unnamed) | classLabl | 0x467628 | tag LBAL, size 0x4C |
+| (unnamed) | classBox | 0x4676EC | tag !XOB (BOX! rev), size 0x44 |
+| (unnamed) | classSepr | 0x4677B0 | tag RPES, size 0x38 |
+| (unnamed) | classBpmn | 0x467874 | tag NMPB, size 0x40 |
+| (unnamed) | classIkbt | 0x467938 | tag TBKI, size 0x50 |
+| classRolr | classKolr | 0x4679FC | **correction**: tag RLOK = KOLR reversed (color chooser; K=COLR) |
+| (unnamed) | classPrgs | 0x467B84 | tag SGRP, size 0x48 |
+| classRldr | classSldr | 0x467C48 | **correction**: tag RDLS = SLDR reversed (slider) |
+| (unnamed) | classHold | 0x468188 | tag DLOH, size 0x40 |
+| classRabl | classMbar | 0x46824C | **correction**: tag RABM = MBAR reversed (menu bar) |
+| (unnamed) | classIkon | 0x468310 | tag NOKI, size 0x78 |
+| (unnamed) | classTikb | 0x467AC0 | tag BKIT, size 0x44 |
+| dokuVwinDesc 0x4605D8, dokuKnt1Desc 0x46062C, dokuMenuDesc 0x460660, dokuSeprDesc 0x460694, dokuInfoDesc 0x4606BC, dokuKlblDesc 0x4606F0 | (created with `widgetDesc` type) | — | first six doku child records |
+
+### Structures created (5 — all size-verified against code+data)
+
+- `rezHeader` (24 B), `rezRec` (20 B) — applied: 0x45F830, 0x45F848[9]
+- `widgetDesc` (40 B) — applied ×6 (doku records)
+- `widgetBase` (56 B) — created (applied to variables pending C1 audit)
+- `widgetClassObj` (144 B) — applied ×21 (all class objects)
+
+### Key conventions established (see 17 §4)
+
+- FourCC code constants = **BE reading of the spelling**; memory-ASCII data is
+  bswapped at the comparison sites; class-object tags store the constant as
+  u32LE (reversed spelling in memory).
+- Widget node = (class FourCC, instance FourCC); instance → widget+0x2C →
+  window instance table slot.
+- Geometry stored as i16 in u32 slots: raw @+0x0C..+0x1B, scaled @+0x1C..+0x2B
+  (scaleQuad × gScaleNum/gScaleDen).

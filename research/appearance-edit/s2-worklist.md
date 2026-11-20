@@ -33,7 +33,133 @@ reconstruct the enclosing records, not just the FourCC pairs.
 
 ## Status
 ### Completed
-- **A1 (MENUscal record) — structure recovered from evidence (code-level, 2026-11-19):**
+- **A1 (MENUscal record) — COMPLETE, code-verified (2026-11-19/20):**
+  - `MENUscal` = 3rd record of the **%REZ built-in UI registry** @0x45F830. It is a
+    (type FourCC, instance FourCC) record pair, NOT an eight-character string.
+  - %REZ header (rezHeader 24B, applied): tag "%REZ" @+0 | byte 0 @+4 | u32LE
+    version=1 @+5 | u64LE 0x3C98 @+9 (purpose unknown) | pad3 @+11 | u32LE
+    count=9 @+0x14 | records @+0x18.
+  - rezRec (20B, applied as rezRec[9] @0x45F848): type4cc ASCII @+0 | instance4cc
+    ASCII @+4 | flags(0) @+8 | sizeBE u32 @+0xC | offsetBE u32 @+0x10 (relative to
+    0x45F830). Sorted by (type,instance); binary search (searchRecords 0x4401C0:
+    standard lo/hi/mid; builtinRecCmp 0x4457C0 compares bswap(rec+0) vs type key
+    then bswap(rec+4) vs instance key).
+  - **CORRECTION to earlier notes**: doku offset 0x0DA0 → 0x45F830+0x0DA0 =
+    **0x4605D0** (earlier I miscomputed 0x4606D0; 0x830+0xDA0=0x15D0). The %VUU at
+    0x4605D0 IS the doku window payload. The binary at 0x4606D0 is INSIDE the doku
+    payload (offset 0x100) = its child-record region.
+  - Payload pool (contiguous, verified): exam 0x218@0x45F900 (%MNU), fsit
+    0x78C@0x45FB18 (%MNU), scal 0x328@0x4602A8 (%MNU), doku 0x620@0x4605D0 (%VUU),
+    efik 0x448@0x460BF0 (%VUU), emik 0x4B0@0x461038 (%VUU), epxm 0x908@0x4614E8
+    (%VUU), esik 0x3B0@0x461DF0 (%VUU), prvw 0x1328@0x4621A0 (%VUU).
+  - **%VUU payload format (code-verified, vuuPayloadParse 0x408B60):**
+    +0x00 "%VUU" | +0x04 u16BE ver=1 | +0x06 u16 0 | +0x08 VWIN record (40B,
+    widgetDesc: class VWIN, x=0,y=0, w/h u16BE, classCode 0, flags 0, sizeBE @+0x14,
+    f18/f1c 0, modeBE, b22, b23, pad2, childCountBE, pad1) | +0x30 window-own block
+    20B: {u32 → newWin+0x18 (packed u16×2, meaning open); u32 → 0x40CC30 arg;
+    u32; 4×u16BE (doku: 380,300,0x4E20,0x4E20 → if any nonzero: scaleQuad +
+    0x40C9A0(win,4 v)); align byte (0→0x40CAC0(full u32), 2→default, else
+    0x40CB10(byte))} | +0x5C child records (widgetDesc each, recursive).
+    All 6 %VUU objects verified: sizes 0x2C/0x3C/0x4C/... at record+0x14, all
+    consistent with vuuPayloadParse (my earlier "size=0" alarm was a hexdump
+    misread; disk==Ghidra confirmed at 0x460C0C=00 00 00 3C).
+  - **widgetDesc (40B, applied to 6 doku records):** class4cc ASCII | x,y,w,h u16BE
+    (i16) | classCode4cc u32BE ASCII (→ widget+0x2C, matched vs instance table) |
+    flagsBE u32 (→ widget+0x30) | sizeBE u32 (payload, round4) | f18 | f1c (both 0
+    in all built-ins) | modeBE u16 (bit 0x04 → FUN_00409850 post-init;
+    (mode&0x18)|1 → widget+0x34) | b22 (classInit arg) | b23 (→ widget+0x37) | pad2 |
+    childCountBE u16 | pad1.
+  - **widgetInstantiate (0x408750) verified semantics:**
+    widgetClassLookup(bswap(desc+0)) → classObj (NULL → hError 0x10017);
+    size = max(classObj->size, 0x38); memAllocZeroed; widgetBase (56B, applied):
+    +0x00 magic 0x5655d881 | +0x04 classObj | +0x08 parent | +0x0C..+0x1B 4×u32
+    SLOTS holding raw i16 x,y,w,h | +0x1C..+0x2B 4×u32 slots holding SCALED i16
+    (scaleQuad × gScaleNum/gScaleDen) | +0x2C classCode | +0x30 flags | +0x34 mode
+    | +0x37 byte. Parent: magic check (0x10019), classObj+0x88 attachFn(parent,
+    child) must exist (0x10002); child+0x08 = parent; classInitFn(child, desc,
+    classCode, b22) if classObj+0x0C; if mode&4 → FUN_00409850(child); advance
+    round4(size); childCount from classObj+0x14 fn? NO — from desc+0x26 u16BE; recurse
+    that many times passing &childOut; instance-table registration: walk table
+    (8B entries {u32 name LE-stored, u16 slotByteOffset, u16 0}), if name ==
+    widget+0x2C → slotArray[slotOffset] = widget.
+  - **scaleQuad (0x429C70, renamed):** dst[i] = (int)(src[i] * gScaleNum)/gScaleDen
+    for 4 i16 values — CONFIRMS gScaleNum/gScaleDen (S1) scale ALL widget geometry.
+    This is what the "Scale:" (scal) menu controls.
+  - **menuPayloadParse (0x412060, renamed):** %MNU header: +0 "​%MNU" | +4 u16BE
+    ver=1 | +6 byte nameLen | +7 byte b7 | headerSize=round4(nameLen+b7+0x2B) | +0x1C
+    u32BE style (arg3 of FUN_0040FB90 menu ctor) | +0x20 u32BE → menuObj+0x5C |
+    +0x24 u32BE item count (≤0x400) | +0x28 pstr name (len=nameLen) | items[]:
+    each ≥0x38B: +0x00 u32BE type | +0x04 u32BE id | +0x08 u16BE? +0x1A u16 packed
+    → +0xC | +0x0C u32BE → +0x10 | +0x18 u16BE → +0x14 | +0x21 byte → +0x16 |
+    +0x22 byte → +0x17 | +0x34 byte titleLen | +0x38 pstr title | then pstr icon
+    (len byte at item+0x55) | itemSize=round4(b37+b36+iconLen+0x3B+titleLen). Items
+    appended via FUN_00440790 to menuObj+0x0C array; post: FUN_00423210, FUN_0040FCC0.
+    (Field meanings HYPOTHESIS; offsets CONFIRMED.)
+  - **widgetAllocInit (0x408670, renamed):** (size ≥0x28, geom4, class4cc, param4,
+    name4cc) → memAllocZeroed; scaleQuad(geom, local); FUN_0040BFA0(obj, geom,
+    class4cc, param4, name4cc) → obj+0x04 (classObj); FUN_0040AE70(classObj,
+    &PTR_labelPaint_0046624c) (default paint?); obj+0x00 = 0x5655d881; obj+0x08 =
+    &DAT_00466188 (temp). Caller passes A0 = window object size: doku 0x1C0=448,
+    prvw 0xA0=160, epxm 0x78=120, emik 0x5C=92, efik 0x54=84, esik 0x4C=76.
+  - **windowCreateFromBuiltIn (0x408ED0, renamed):** (objSize, name4cc,
+    instTable, instCount, param4, parent) → lookupBuiltInRec(VWIN, name4cc, &size)
+    → vuuPayloadParse(parent, payload, size, 0, instTable, instCount, 0, parent).
+    Callers: docCreate("doku", 0x1C0, dokuInstTable, 19), 0x401E30("prvw", 0xA0,
+    prvwInstTable, 29), 0x407AD0("emik", 0x5C, emikInstTable, 9), 0x405B00("efik",
+    0x54, efikInstTable, 8), 0x404EC0("esik", 0x4C, esikInstTable, 6), 0x406F40
+    ("epxm", 0x78, epxmInstTable, 18).
+  - **menuCreateFromBuiltIn (0x412490, renamed):** lookupBuiltInRec(MENU, inst)
+    → menuPayloadParse.
+  - **Class registry (18 classes):** widgetClassLookup (0x409150) fast path:
+    BUTN→0x4674A0, HOLD→0x468188, KLBL→0x467564, KNTR→0x466690, LABL→0x467628,
+    TXTS→0x466C80, "VUU!"(0x56555521)→0x4660C4; slow path = dynamic pointer array
+    at [gClassTblPtr 0x466B5C] count [gClassCount 0x466B60], linear scan comparing
+    arg vs classObj+0x00 (tag stored native LE). Registered at runtime by 11
+    thunks classReg* (callers include constructApp 0x403D30): SEPR 0x4677B0, RABL
+    0x46824C, ROLR 0x4679FC, RLDR 0x467C48, TIKB 0x467AC0, PRGS 0x467B84, IKON
+    0x468310, IMGS 0x466ECC, "BOX!" 0x4676EC, BPMN 0x467874, IKBT 0x467938.
+    widgetClassRegister (0x409100): search (0x440B70) then insert (0x440790) into
+    that table; NULL classObj → hError 0x10002.
+  - **widgetClassObj (144B, applied to all 18):** +0x00 tag (native LE of BE int) |
+    +0x04 0 | +0x08 size | +0x0C initFn | +0x14 childCountFn | +0x5C stateNotifyFn
+    (S1 ✓) | +0x88 attachFn | rest = unverified vtable slots (named v10..v8c).
+    Sizes: VUU! 0x38, KNTR 0x70, BUTN 0x40, BPMN 0x40, SEPR 0x38, ...
+  - **doku window tree (verified, partial):** VWIN 380×400 obj=0x1C0B → KNTR
+    (380×400, classCode 0, 8 children, mode 0x18) → [BPMN "menu" (5,4 175×24), SEPR
+    (2,28 379×32, 4 children, mode 0) → KNTR "info" (0,30 380×400, 3 children) →
+    KLBL "Name:" (10,15 100×31, pstr "Name:"), TXTS "naam" (10,65 30×36, pstr?),
+    ...], + 7 more KNTR children (the tab pages: info/klrs/...). SEPR apparently
+    hosts the tab pages (4 children) — a separator-class container.
+  - **Instance tables (typed+renamed):** dokuInstTable 0x45F048 (19),
+    prvwInstTable 0x45F57C (29), epxmInstTable 0x465A9C (18), emikInstTable
+    0x465FB4 (9), efikInstTable 0x46440C (8), esikInstTable 0x4640C4 (6).
+    Entry = {u32 name (native LE storage; canonical spelling = BE reading = ASCII
+    in descriptors), u16 slotByteOffset (4×index), u16 0}. doku names: menu, info,
+    klrs, jmis, snks, kifp, kpim, naam, srev, ktrr, dsek, krea, idom, scal, klrl,
+    lmij, lnik, kifb, kiml. (scal = the Scale menu ✓ matches BPMN classCode @
+    0x46066C "menu"... note: BPMN menu bar's classCode = "menu"; the "scal"
+    instance is a different BPMN deeper in the tree — see doc 17.)
+  - **Ghidra enrichment applied + read-back verified (probes):** 21 function
+    renames (widgetClassLookup, widgetClassRegister, widgetInstantiate,
+    vuuPayloadParse, windowCreateFromBuiltIn, menuCreateFromBuiltIn,
+    lookupBuiltInRecSoft, scaleQuad, menuPayloadParse, widgetAllocInit, 11
+    classReg*); 28 data renames (rezBuiltinHeader/Records, gClassTblPtr/Count,
+    18 classXxx, 6 xxxInstTable); 5 structures created (rezHeader 24B, rezRec 20B,
+    widgetDesc 40B, widgetBase 56B, widgetClassObj 144B — all size-verified);
+    26 data applications (rezHeader×1, rezRec[9]×1, widgetDesc×6, widgetClassObj×18
+    incl. re-typing the 18 classXxx with their names).
+  - **S1 corrections pending doc updates:** (1) widget "u16 state @+0x0D" was a
+    misread — +0x0C..0x2B are u32 slots holding i16 geometry (raw then scaled);
+    re-audit widgetStateSet in C1. (2) S1 "button rect @+0x2C..0x38" — in the base
+    widget +0x2C=classCode/+0x30=flags/+0x34=mode; BUTN class size is only 0x40,
+    so S1's ≥0xC4 button object is a different (editor-side) object — re-audit in
+    C1. (3) 0x4625C0–0x462700 "widget class descriptor pool" = prvw window child
+    records (TIKB/IKBT/IKON/BPMN/KNTR/SEPR widgets in the live preview), not class
+    descriptors.
+  - IKON lookups in cell painters (0x42A2D0/0x42B5D0): IKON class EXISTS in the
+    registry (0x468310), so these lookups are for the IKON widget class — not a
+    separate icon table. Earlier "separate runtime-registered table" theory is
+    SUPERSEDED (IKON is one of the 11 registered classes).
   - `MENUscal` = 3rd record of the **%REZ built-in UI registry** @0x45F830.
   - %REZ header: +0x00 "%REZ"+NUL | +0x05 u32LE 1 | +0x09 u32BE 0x3C98 (pool total) |
     +0x0D u32 0 | +0x10 u32 0 | +0x14 u32BE count=9 | +0x18 records[9].
@@ -104,11 +230,60 @@ reconstruct the enclosing records, not just the FourCC pairs.
     Marked PROBABLE (no disproof that editor ever hits it).
 
 ### In progress
-- B2 (pseudocode tasks for 0x408750/0x408B60 pending; class registry 0x4625xx
-  mapping; class lookup 0x409150)
-
-### Pending
-- (all other batches)
+- **A2 (adjusted with user input 2026-11-20):**
+  (1) User listed strings separately; found several FOUR-CHAR CODES LISTED AS
+  STRINGS — removed them from their list. Our docs must reclassify (4cc vs
+  genuine string).
+  (2) User confirms node model: class ID + instance FourCC ("VWIN' for view
+  window, TIKB for tick button/checkbox, etc) followed by a four char code
+  identifier (ie. doku)") — matches our code-verified model.
+  (3) "%VUU" means 'view'; developer naming eccentricity: C for K swaps
+  (explains KOLR=COLR, KLRS≈CLRS, KREA≈CREA, KNTR≈KONTAINER). User-supplied =
+  PROBABLE semantics.
+  (4) "Far too many to list" — we list strings and diff ourselves.
+  **(a) COMPLETE (2026-11-20):** full printable-run audit of .rdata+.data
+  (6477 runs ≥3 chars; 358 four-char alphabetic). Results → doc 17 §11:
+  - 17 reversed class tags found = all class objects minus 2 with '!' in tag
+    (!UUV/VUU!, !XOB/BOX!) — **21 class objects total, no orphans**.
+  - KEY FINDING: class-object tag @+0x00 stores the **code constant as u32LE**
+    = byte-REVERSED spelling in memory (BKIT=TIKB, DNIW=WIND, RLOK=KOLR, RABM
+    =MBAR, RDLS=SLDR, NMPB=BPMN, NOKI=IKON, SGRP=PRGS, SGMI=IMGS, RPES=SEPR,
+    RTNK=KNTR, STXT=TXTS, LBLK=KLBL, LBAL=LABL, DLOH=HOLD, TBKI=IKBT, STSL=?,
+    TSLC=?). widgetClassLookup compares the BE-reading argument DIRECTLY vs the
+    tag word (no bswap) — verified from the 0x409150 disassembly subtract-chain
+    (BUTN 0x4255544E, HOLD 0x484F4C44, KLBL 0x4B4C424C, KNTR 0x4B4E5452, LABL
+    0x4C41424C, TXTS 0x54585453, VUU! 0x56555521).
+  - NEW class objects: WIND @0x466188 (size 0x28, initFn 0 — the WINDOW class,
+    direct ref from 0x408705 in widgetAllocInit), STSL @0x466D44 (0x4C,
+    initFn 0x409BD0, ref 0x420C56 — PROBABLE "list"), TSLC @0x466E08 (0x54,
+    initFn 0x409BD0, ref 0x421886 — PROBABLE the D-section/class-colors class;
+    tag identical to HAP D-section tag).
+  - NAME CORRECTIONS applied in Ghidra: classRolr→**classKolr** @0x4679FC
+    (KOLR = K-swap of COLR; descriptor spelling KOLR, always next to "Color:"),
+    classRabl→**classMbar** @0x46824C (MBAR = menu bar; descriptor MBAR,
+    instance mbar in epxm window); classRegRolr→classRegKolr, classRegRabl→
+    classRegMbar (thunks verified: push the object ptr, call 0x409100).
+  - BUTN tag confirmed NTUB @0x4674A0 (size 0x40, initFn 0x4352C0); BOX! tag
+    !XOB @0x4676EC (0x44, initFn 0x435FF0); VUU! tag !UUV @0x4660C4 (0x38,
+    initFn 0x409BD0).
+  - All 21 class objects: size/initFn from disk-verified headers; widgetClassObj
+    (144B) applied to all.
+  - Instance names (lowercase 4cc at descriptor+0x0C): ~50 catalogued in doc 17
+    §11; includes menu-bearing widget instances (menu, scal, mbar, umen, mnut,
+    tmnu) and D/E part names (sbht sbhi sbvd sbvs sbvt sbvi tirt mirt pbar pbsl
+    lscl txtk trnk trns tsty tssc tsec tpos bpos …).
+  - Part-name→u32LE map tables: 0x45F0C0-0x45F0DC (klrl ljmp lnki kifl kiml →
+    0x7C..0x8C) and 0x45F61C-0x45F660 (shbs ihbs thbs dvbs svbs ivbs tvbs tirt
+    mirt → 0x7C..0x9C) — PROBABLE part→style-slot maps (relates to S1's C-blob
+    flag 0x7C..0x81 finding). Deferred to Batch E.
+  - False-positive 4ccs identified (font glyphs wvgw/wwva/DJUZ/JwzZ, float
+    tables QNaN/SNaN/eDDQ, Win32 class regs TXET "txt"/lTrP "trp"/ATAD "pah"/
+    KRLK) — documented, not identifiers.
+  **(b) PENDING:** prvw window child-record mapping (TIKB/IKBT/IKON/KNTR/SEPR
+  /BPMN @0x4625C0-0x462700 = live-preview widgets); TSLC fragment blob 0x466DD4
+  (gBuiltinHapEvilChiaroscuroA); gOncePtr 0x46698C→0x47B324.
+  **NEXT CONCRETE:** propagate doc-02 FourCC reclassification + symbol-ledger
+  update for A2 renames, then B2 (dispatch) or (b) remainder per priority.
 
 ## Carried from S1 (open items 1–9, doc 07 §5.1)
 1. WM_PAINT → per-child paint call site → **B2**

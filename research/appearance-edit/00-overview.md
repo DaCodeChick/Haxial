@@ -151,3 +151,33 @@ Research + Ghidra enrichment milestone (no Rust, per task scope).
 - **Editor named resource tables** (on-disk scan): `gColorRoleNames` @0x461EC8 (6 groups, 53 named D roles) and `gEIconNames` @0x462E70 (155 E icon slots) — the concrete "editor-internal" E mapping; 11 more screenshots examined (17/22 total; composition per widget type). Doc 16, doc 15 §3–7.
 - **Correction**: 0x48Dxxx "provider vtables" (R0-A.3) are the **.idata IAT** (unbound import entries), not runtime objects; dibInfoDecode's provider calls are import API calls. Doc 16 §3.
 - Ghidra (all read-back verified): 20 function renames, 16 data renames, 19 function comments, 2 data plate comments, hapBitmapObj.fillMode→fillColor, nineSliceBlitC prototype. Docs 13–16 + 04/05/06/07/10/11 updates; `s1-worklist.md` checkpoint.
+
+## Session S2 (2026-11-19/20) — IN PROGRESS (widget record reconstruction, FourCC semantics, UI evidence closure)
+
+Priority item **CLOSED**: `MENUscal` is the (type=MENU, instance=scal) record of the
+`%REZ` built-in UI registry @0x45F830 — a structured 20-byte (type4cc, instance4cc,
+flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char string.
+- **`%REZ` registry** (9 records: 3 `%MNU` menus exam/fsit/scal + 6 `%VUU` windows
+  doku/efik/emik/epxm/esik/prvw) — format, header, and lookup code fully
+  code-verified (doc 17 §1).
+- **`%VUU` payload + `widgetDesc` (40 B)** — window frame + recursive 40-byte
+  widget descriptors (class/geom/instance/flags/size/mode/childCount) code-verified
+  through `vuuPayloadParse`/`widgetInstantiate` (doc 17 §2–3).
+- **Class registry: 21 class objects** — tag = code constant stored u32LE
+  (byte-reversed spelling in memory); sizes/initFns verified; 3 new (WIND/STSL/TSLC);
+  3 name corrections (KOLR/MBAR/SLDR) — doc 17 §6.
+- **FourCC convention** — three representations (memory-ASCII / BE code constant /
+  LE-stored tag), bswap sites identified; string-vs-FourCC re-audit of all 358
+  four-char runs (doc 17 §4, §11).
+- **`scaleQuad`** — all widget geometry scaled by gScaleNum/gScaleDen; this is the
+  `scal` (Scale) menu's effect — doc 17 §7.
+- **User-confirmed (2026-11-20)**: node = class ID + instance identifier; `%VUU` =
+  "view"; developer C↔K naming eccentricity (KOLR=COLR etc.).
+- Ghidra (all read-back verified): 24 function rename ops (21 new + 3 corrections),
+  34 data rename ops (28 new + 6), 5 structures (rezHeader 24, rezRec 20, widgetDesc
+  40, widgetBase 56, widgetClassObj 144 — all size-verified), 29 applications.
+- Docs: `17-s2-fourcc-records.md` (new), `02-strings-and-fourcc.md` §1.4 rewritten,
+  `06-symbol-ledger.md` (S2 section), `s2-worklist.md` checkpoint.
+- Remaining S2 batches: A2b (prvw tree, TSLC fragment, gOncePtr), B (paint dispatch),
+  C (enrichment gate), D (geometry), E (resources/colors), F (font), G (C-blob),
+  V (validation + docs 18–21).

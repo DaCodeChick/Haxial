@@ -40,24 +40,50 @@ APIs) and for compiler-generated literals in `.rdata` (e.g. `"!SError!"` @
 `0x453F30`, dialog texts in `0x454xxx`–`0x466xxx`). MultiByteToWideChar is imported
 for byte→wide conversion (file-name handling converts Pascal/byte names to wide).
 
-### 1.4 FourCC identifiers
+### 1.4 FourCC identifiers (reclassified in S2 A2 — see `17-s2-fourcc-records.md`)
 
-Observed FourCCs (raw bytes, little-endian dword, big-endian dword):
+**Three representations, never conflated** (CONFIRMED, doc 17 §4):
 
-| Bytes | Spelling | LE u32 | BE u32 | Where |
-|---|---|---|---|---|
-| `56 57 49 4E` | `VWIN` | `0x4E495756` | `0x5657494E` | embedded DB VWIN structures @ `0x4605D8` etc.; passed as code constant `PUSH 0x5657494E` @ `0x408EDD` |
-| `4D 45 4E 55` | `MENU` | `0x554E454D` | `0x4D454E55` | code constant @ `0x4124A1` (`PUSH 0x4D454E55`) |
-| `42 55 54 4E` | `BUTN` | `0x4E545542` | `0x4255544E` | widget state names `"DisabledBUTN"` @ `0x4631D4`, `"Default"`+`"BUTN"` @ `0x463218` |
-| `53 45 50 52` | `SEPR` | — | — | `"DisabledSEPR"` @ `0x4624CC` |
-| `4B 4E 54 52` | `KNTR` | — | — | inside VWINdoku structure @ `0x46062C` |
+| Representation | `TIKB` example | Where |
+|---|---|---|
+| Memory-ASCII (raw bytes = spelling) | `54 49 4B 42` | descriptor `class4cc`; `%REZ` type/instance; instance names |
+| Code constant (BE reading of the spelling) | `0x54494B42` | `PUSH`-ed arguments (`VWIN`→`0x5657494E` @ `0x408EDD`, `MENU`→`0x4D454E55` @ `0x4124A1`) |
+| Class-tag storage (constant as u32LE ⇒ **reversed spelling in memory**) | `42 4B 49 54` = "BKIT" | class object tag @+0x00 (doc 17 §6) |
 
-**CONFIRMED code convention:** when a FourCC is passed as a 32-bit integer argument
-it is the **big-endian reading** of the byte sequence (e.g. "VWIN" → `0x5657494E`).
-In memory (data), FourCCs are stored as their natural ASCII byte order.
+`widgetInstantiate` and `builtinRecCmp` bswap the memory-ASCII side; the
+`widgetClassLookup` slow path compares the code constant directly against the
+tag word (no bswap) — verified from the `0x409150` subtract-chain.
 
-Class-tag bytes in embedded DB structures: `25` ('%') followed by 3 chars + NUL,
-e.g. `%MNU` @ `0x45F900`, `%VUU` @ `0x4605D0` (PROBABLE: '%' = object-class marker).
+**Widget class FourCCs (21 classes, doc 17 §6):** descriptor spelling —
+`VUU!` (view, base), `WIND` (window), `KNTR` (container), `TXTS` (text),
+`STSL`-class (canonical open), `TSLC`-class (D-section colors, PROBABLE),
+`IMGS` (image), `BUTN` (button), `KLBL` (klabel), `LABL` (label), `BOX!`,
+`SEPR` (separator), `BPMN` (menu button), `IKBT` (icon button), `KOLR`
+(color; K-swap of COLR), `PRGS` (progress), `SLDR` (slider), `HOLD` (holder),
+`MBAR` (menu bar), `IKON` (icon).
+
+**Type FourCCs in the `%REZ` registry:** `VWIN` (window payload), `MENU`
+(menu payload). **Instance FourCCs:** `doku efik emik epxm esik prvw` (the six
+windows), `exam fsit scal` (the three menus), plus ~45 lowercase widget
+instance names (doc 17 §11).
+
+**FourCCs previously listed as strings — reclassified (A2):** every 4-char
+alphabetic run that is a class/instance identifier has been removed from the
+"string" inventories; full classification of all 358 four-char runs in doc 17
+§11 (17 reversed class tags + 4 with `!`, straight descriptor spellings,
+instance names, part-name tables, and false positives such as font-glyph runs
+`wvgw wwva` and Win32 class regs `TXET lTrP ATAD KRLK` that are *not*
+identifiers). Genuine 4-char UI strings (`Exit Save Copy Find …`) are preserved.
+
+**% tags:** `%REZ` (registry), `%VUU` (view object), `%MNU` (menu), `%IKN`
+(HAP icon section). User-confirmed (2026-11-20): `%VUU` = "view". The `%`
+marker convention matches BeOS-style resource tags (PROBABLE).
+
+**Node model (user-confirmed):** "the nodes are usually the class ID ('VWIN'
+for view window, TIKB for tick button/checkbox, etc) followed by a four char
+code identifier (ie. doku)". Developer naming eccentricity: C↔K swaps
+(`KOLR`=COLR, `KLBL`=K LABEL, `KNTR`≈KONTRAINER, `KREA`≈CREA) — user-supplied,
+PROBABLE.
 
 ## 2. Pascal-string helper functions (CONFIRMED by decompilation)
 
