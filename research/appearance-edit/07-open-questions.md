@@ -3,6 +3,8 @@
 Sessions R0-A and R0-A.1, 2026-11-17.
 R0-A.1 status: items resolved by the corpus + HAP-format work are struck through;
 new questions from R0-A.1 are in §4.
+**Session S1 (2026-11-18): state machine, skin install/dispatch, C-blob layout,
+nine-slice runtime algorithm, painters — see §5 and docs 13–15.**
 
 ## High priority (format-critical)
 
@@ -34,7 +36,7 @@ new questions from R0-A.1 are in §4.
    %IKN 1/2/4/8/24bpp, %MSI 2/8/32bpp); the GDI drawing path is not.
 9. 11 subsystem init functions in `constructApp`: still open.
 10. Main window WndProc (candidate `FUN_004038C0`): still open.
-11. Formatters `FUN_00439CC0`/`FUN_00439D00`/`FUN_0043A610`: still open.
+11. ~~Formatters `FUN_00439CC0`/`FUN_00439D00`/`FUN_0043A610`: still open.~~ **RESOLVED (S1)** — 0x43A610 = `fmtByteCount` (K/M/G/T/P/E sizes); 0x439CC0 = `fmtSignedInt` (R0-A.3).
 12. `FUN_00414BF0` terminal error handler / `FUN_00434420` record init: still
     open (note: `hapParse` error codes 0x10008/0x10009/0x1000A = bad
     version / bad magic / size-mismatch — now documented).
@@ -126,6 +128,46 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 - Carried: DDE (item 4), subsystem inits (9), WndProc (10), formatters (11),
   string class table (13), state-record fields (3), registry byte-swaps (5).
 
+## 5. Session S1 resolutions (2026-11-18)
+
+- **Widget state model — RESOLVED**: `widgetStateSet` (0x4093E0): u16 state
+  @+0x0D, bits 0x01/0x02/0x20 (active/hilited/disabled), constraint rules,
+  virtual notification via (widget+4) vtable+0x5C. Hilite writer:
+  `buttonHoverSet` (0x43BDD0). Doc 13 §3.
+- **Appearance install/dispatch — RESOLVED**: `skinInstall` (0x428C70)
+  populates the fixed global section-pointer block (0x466950–0x4669B1) from
+  the v2 HAP directory; v2-only; entry `appearanceLoadInstall`/`appearanceResetDefault`.
+  D-role lookup `styleColorGet` (54 roles + built-in fallback); ink blit core
+  0x44DFE0; paint methods template-dispatched ({fn, arg} tables in .data).
+  Doc 13.
+- **C-blob layout + 9-slice runtime — RESOLVED** (corrections to R0-A.2):
+  caps in base header, palette before pixels, ext block @+0x14; edges =
+  per-pixel replication, centre = solid fill / ext content fill. Doc 14.
+- **Screenshot backlog — CLEARED**: all 22 screens examined (doc 15, doc 10
+  updated). Note: `mouseicons.png` lives in `app-builtintheme-blank/`
+  (an earlier look in `ui-builtintheme/` missed it); `colors.png` is
+  `app-builtintheme-blank/colors.png`. The %MSI mouse-icon consumer has
+  dedicated screenshot evidence (mouseicons.png).
+- **Formatters — RESOLVED**: `fmtByteCount` (0x43A610), `fmtSignedInt`
+  (R0-A.3).
+- **fileClose registry — RESOLVED**: 0x41A300 unlinks two registry keys
+  (0x4668D8/0x4668E8) on close when rec[6] set.
+
+## 5.1 New S1 open items
+
+1. WM_PAINT → per-child paint call site (paint methods have no code
+   callers; template tables identified but the walker not yet traced).
+2. D role → widget-element mapping (which of the 54 roles paints which
+   element, per painter).
+3. Runtime layout of embedded blob B (0x4683D4) beyond +0x52/+0x60/+0x64;
+   TSLC table (0x466DD4) assembly mechanism.
+4. E-section runtime ink object layout (only byte length tracked globally);
+   .fnt → ink pipeline.
+5. C-blob `field0`/`field2`/`field4` semantics; secondary-mode (flags
+   2/4/8) extra-row content + consumer.
+6. `gStyleStrA/B` (0x466974/7C) and `gOncePtr` (0x46698C → 0x47B324) purposes.
+7. Post-install hooks 0x40F220 / 0x41D390.
+
 ## 6. Next-stage plan (post-R0-A.2, 2026-11-18)
 
 **Stage S1 — UI layer: widget geometry and DIB construction (Ghidra +
@@ -147,9 +189,8 @@ corpus)**
    same discipline as `09` §1).
 
 **Stage S2 — Remaining evidence closure**
-6. Examine the 16 unexamined screenshots (priority: `popupmenu.png` —
-   off-window `dcBlitDib` path; `colors.png`; `mouseicons.png` — %MSI
-   consumer; `hscrollbars.png`).
+6. ~~Examine the 16 unexamined screenshots...~~ **DONE (S1)** — all 22 screens
+   examined; doc 15 §3–§7. `mouseicons.png` = `app-builtintheme-blank/`.
 7. State-record fields (item 3) + widget-descriptor blocks `0x4649xx`–
    `0x465xxx` (volume-map referents) — u16 metric meanings.
 8. WndProc/menu dispatch (item 10) + DDE (item 4) + subsystem inits (item 9)

@@ -140,3 +140,14 @@ Bidirectional call-graph semantic enrichment over the HAP layer + render pipelin
 - Key: DIB engine (two blit paths + rectClipIntersect + alpha-blend fill), font-glyph text raster, icon-grid/state-icon machinery, %MSI field map (corrected), pair-record auto-bpp, classic-DIB decoder, file layer + error + pstr/mem/fmt layers fully gated, doc lifecycle + open/save/import pipelines.
 - Docs: `12-r0a3-semantic-enrichment.md` (report + coverage audit), `r0a3-worklist.md` (durable checkpoint, per-batch audit log), `06-symbol-ledger.md` (R0-A.3 section).
 - Deferred (documented): 0x41A300 + 0x43A610 decompiles (decompiler congestion; task ids saved), dibInfoDecode resource origin (S1), tier-B UI builders.
+
+## Session S1 (2026-11-18) — COMPLETE (UI rendering pipeline, widget composition, resource dispatch)
+
+Research + Ghidra enrichment milestone (no Rust, per task scope).
+- **Global skin context**: `skinInstall` (0x428C70) populates fixed section-pointer block (gStyleRec=C base, gStyleDColors/D, gInkTbl/E, gInkF/F, gInkG/G, scale num/den, 5×7 metric matrix) from v2 HAP directory; v2-only install; entry `appearanceLoadInstall`/`appearanceResetDefault`. Doc 13.
+- **Resource dispatch**: `styleColorGet` (54 D roles, per-role built-in fallback), C-table direct slot indexing, `inkBlitCore` (0x44DFE0) glyph/ink blit core; paint methods template-dispatched ({fn,arg} tables in .data; no static vtables). Docs 13 §2–4, 15 §1–2.
+- **Widget state machine**: `widgetStateSet` (u16 @+0x0D, bits 0x01/0x02/0x20, constraint rules, virtual notify via (widget+4) vtable+0x5C); `buttonHoverSet` hilite writer; button widget object layout. Doc 13 §3.
+- **C-blob + 9-slice CORRECTIONS** (supersede R0-A.2): caps in base header, palette before pixels, ext block @+0x14; runtime = corner copies + per-pixel edge replication + centre solid/ext-content fill. Doc 14.
+- **Editor named resource tables** (on-disk scan): `gColorRoleNames` @0x461EC8 (6 groups, 53 named D roles) and `gEIconNames` @0x462E70 (155 E icon slots) — the concrete "editor-internal" E mapping; all 22 screenshots examined (composition per widget type). Doc 16, doc 15 §3–7.
+- **Correction**: 0x48Dxxx "provider vtables" (R0-A.3) are the **.idata IAT** (unbound import entries), not runtime objects; dibInfoDecode's provider calls are import API calls. Doc 16 §3.
+- Ghidra (all read-back verified): 20 function renames, 16 data renames, 19 function comments, 2 data plate comments, hapBitmapObj.fillMode→fillColor, nineSliceBlitC prototype. Docs 13–16 + 04/05/06/07/10/11 updates; `s1-worklist.md` checkpoint.

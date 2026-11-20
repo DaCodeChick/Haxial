@@ -299,3 +299,65 @@ gIconGrid 0x488AC0, gMainWindow 0x466294, gAllocCount 0x466BAC.
 - %MSI field map: hotspot @0x0C/0x0D, bpp @0x0E (supersedes 0x0D/0x0E/… draft in R0-A.2 notes).
 - hapBitmapObj @0x28..0x34 = clip rect (not surfW/H); @0x38 = fillMode (not second trans color).
 - pairRecordBuild bpp selection is palette-count based (paletteExtract), not a raw format probe.
+
+---
+
+## Session S1 — 2026-11-18 (resource dispatch + C-blob/9-slice + painters)
+
+### Function renames (20)
+
+| Old | New | addr | Evidence |
+|---|---|---|---|
+| FUN_004293b0 | nineSliceBlitC | 0x4293B0 | 9-slice blitter: corners + edge replication + centre fill; caller chain from state-icon/window paint |
+| FUN_004444a0 | dibSamplePixel | 0x4444A0 | (palCount<<24)\|(palIndex<<16)\|0x00FF0000 test = 8bpp indexed sample with alpha-out |
+| FUN_004443d0 | dibSamplePixelTrans | 0x4443D0 | trans-colour variant |
+| FUN_004265d0 | bmpFillChecked | 0x4265D0 | magic 0xF4DA120B check + fill from surface+0x38 |
+| FUN_004291b0 | nineSliceStretchH | 0x4291B0 | per-row per-pixel edge replication (9-slice) |
+| FUN_004292b0 | nineSliceStretchV | 0x4292B0 | per-column per-pixel edge replication |
+| FUN_00429100 | cBlobHeaderDecode | 0x429100 | fills hapDibSrc from C blob (base+ext) |
+| FUN_00426830 | extContentFill | 0x426830 | ext centre fill (colour word@+0x14, insets @+0x1D/0x1F) |
+| FUN_00427fd0 | bmpBlitAlpha | 0x427FD0 | alpha/trans-index blit (ext corners) |
+| FUN_004093e0 | widgetStateSet | 0x4093E0 | state machine: magic 0x5655D881, u16 @+0x0D, constraint rules, virtual notify @vtable+0x5C |
+| FUN_00428c70 | skinInstall | 0x428C70 | global skin-context installer (all g* section pointers) |
+| FUN_004287f0 | hapHeaderValidateV2 | 0x4287F0 | %HAP magic, ver==2, scale nibbles, 6 dir slots |
+| FUN_00435030 | skinApply | 0x435030 | skinInstall + 0x40F220 + 0x41D390 |
+| FUN_00402fa0 | appearanceLoadInstall | 0x402FA0 | hapSerialize → skinApply → holder+0x04 = blob |
+| FUN_00403020 | appearanceResetDefault | 0x403020 | skinApply(NULL,0) + memFree |
+| FUN_0042a140 | styleColorGet | 0x42A140 | D-colour by role, 54 roles, fallback to built-in |
+| FUN_0043bf60 | buttonWidgetPaint | 0x43BF60 | per-element button paint loop (no code callers — template-dispatched) |
+| FUN_0043bdd0 | buttonHoverSet | 0x43BDD0 | hilite bit-2 set/clear in per-element state words |
+| FUN_0044dfe0 | inkBlitCore | 0x44DFE0 | ink/glyph blit core (bmpInkBlit/bmpTextDraw callers) |
+| FUN_0043a610 | fmtByteCount | 0x43A610 | human-readable K/M/G/T/P/E sizes |
+
+### Data renames (14)
+
+gStyleDColors 0x46695C, gStyleDColorCount 0x466960, gInkF 0x46696C,
+gInkFSize 0x466970, gInkG 0x466984, gInkGSize 0x466988, gScaleNum 0x466991,
+gScaleDen 0x466992, gStyleDColorsFallback 0x466958, gStyleStrA 0x466974,
+gStyleStrB 0x46697C, gStyleMetricBases 0x467030, tableButtonMethods
+0x45E140, tableLabelMethods 0x45C560.
+
+### Types/fields
+
+- `hapBitmapObj` field `fillMode` → `fillColor` (0x38; fill colour used by bmpFillChecked — supersedes R0-A.3 naming; field semantics from R0-A.3 stand).
+
+### Comments (this session)
+
+nineSliceBlitC, dibSamplePixel, dibSamplePixelTrans, bmpFillChecked,
+nineSliceStretchH/V, cBlobHeaderDecode, extContentFill, bmpBlitAlpha,
+widgetStateSet, skinInstall, hapHeaderValidateV2, skinApply,
+appearanceLoadInstall, appearanceResetDefault, styleColorGet,
+buttonWidgetPaint, buttonHoverSet, inkBlitCore, fmtByteCount (19).
+
+### Corrections superseding earlier entries
+
+- **C blob layout** (supersedes 04-hap-format.md §6 and 11 §2): caps @+0x0C..0x0F in the **base** header (always); ext block = 12 B @+0x14; **palette precedes pixels**; size = hdr + rows + sec + (pal+1)*4. Full spec: `14-s1-c-blob-and-9slice.md`.
+- **9-slice runtime algorithm** (supersedes 11 §2): edges = per-pixel nearest-neighbour replication of the 1-pixel source edge (NOT texture stretch); centre (plain) = solid fill of sampled centre colour; centre (ext) = ext content fill with insets, centre fill skipped.
+- `hapBitmapObj+0x38` = **fill color** (not "fillMode", not trans color).
+- All 22 corpus screenshots examined (doc 15); `mouseicons.png` = `app-builtintheme-blank/mouseicons.png` (a wrong `ui-builtintheme/` path lookup earlier made it appear absent).
+
+### S1 addendum (named tables + IAT correction)
+
+- `gColorRoleNames` @ 0x461EC8 (data, byte + plate comment): 53 D-role names + 6 UTF-8 group headers, 4-byte-aligned pstrs; order = D role index.
+- `gEIconNames` @ 0x462E70 (data, plate comment): 155 E icon slot names, 4-byte-aligned pstrs.
+- **Correction**: R0-A.3 "provider vtable globals 0x48D30C–0x48D41C" = .idata IAT entries (unbound; PE .idata VA 0x8D000, 0xCAC bytes). Not runtime objects; no further open item.

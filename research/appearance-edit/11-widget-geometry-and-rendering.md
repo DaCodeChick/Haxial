@@ -58,6 +58,13 @@ per widget state.
 
 ## 2. Nine-patch (9-slice) skin model — CONFIRMED
 
+> **S1 correction (doc 14):** the caps live in the C-blob **base header**
+> (+0x0C..+0x0F, always present) — not only in the extended block. Runtime
+> algorithm: corners = exact copies; **edges = per-pixel nearest-neighbour
+> replication of the 1-px source edge** (not texture stretch); centre (plain)
+> = solid fill of the sampled centre colour; centre (ext) = ext content fill
+> (coloured rect with insets @+0x1D/0x1F). Full spec: `14-s1-c-blob-and-9slice.md`.
+
 **This is the generalized Haxial widget-stretching model** (the BeOS
 look is one *appearance* using it; the mechanism is appearance-agnostic):
 

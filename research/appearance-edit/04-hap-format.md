@@ -518,4 +518,11 @@ complete default skin used at build time / older path).
 - C section: 64B (0x10-word) header before the 512-slot offset table (min size 0x840).
 - F section records join the same runtime ink list as v1 E volume inks.
 - v1 E rows may hold two blobs (layer A/B) → in-memory pair record (live surface pointers; storage bpp auto from palette size <3→1, <5→2, <17→4, <257→8, else 24).
-- `dibInfoDecode` (0x41ccc0) decodes a classic Windows DIB (BITMAPINFO, BI_RGB, 24bpp or ≤8bpp+palette, negative height = bottom-up); resource origin unresolved (S1).
+- `dibInfoDecode` (0x41ccc0) decodes a classic Windows DIB (BITMAPINFO, BI_RGB, 24bpp or ≤8bpp+palette, negative height = bottom-up); the calls through 0x41c7xx–0x41d1xx are **import thunks (.idata IAT)**, not a provider-vtable object (S1 correction, doc 16 §3).
+
+## Appendix: S1 corrections (2026-11-18, see docs 13–16)
+
+- **§6 C-blob layout superseded** (doc 14): caps @+0x0C..+0x0F in the **base** header (always present); extended block = 12 B @+0x14 (extColour word @+0x14, content insets @+0x1D/0x1F); **palette precedes pixels**; blob size = hdr + rows + secondary + (pal+1)*4; hdr = 0x14 + (ext?0xC:0). `field0` @+0x08 / `field2` @+0x10 semantics unconfirmed.
+- D section: 54 slots; editor role names in `gColorRoleNames` @0x461EC8 (53 named + 1 unnamed, doc 16 §1). Color encoding `[00][RR][GG][BB]` stands.
+- E section: editor icon registry `gEIconNames` @0x462E70 (155 named slots, doc 16 §2); runtime install tracks E by base + byte length (`gInkTbl`/`gInkCount`), v2-only for rendering (doc 13).
+- Scale: header bytes 0x0C/0x0D = gScaleNum/gScaleDen; 5×7 metric matrix @0x466994 = base bytes 0x46703B..0x46705A × num/den (doc 13 §1).
