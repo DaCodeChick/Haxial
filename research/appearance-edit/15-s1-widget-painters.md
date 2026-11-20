@@ -1,9 +1,10 @@
 # S1 — Widget Painters, State-Driven Composition, and Screenshot Evidence
 
 Status: session S1. Painters decompiled in R0-A.3; state/hover writers and
-D-colour lookup resolved this session (doc 13). Screenshot evidence: all 15
+D-colour lookup resolved this session (doc 13). Screenshot evidence: all 11
 `refs/screenshots/appearance-edit/ui-builtintheme/` screens examined (plus
-2 `app-beos/`, 2 `app-builtintheme-blank/`).
+2 `app-beos/` from R0-A.2 and 3 `app-builtintheme-blank/` this session:
+colors, mouseicons, icons).
 
 ## 1. Known paint methods (CONFIRMED)
 

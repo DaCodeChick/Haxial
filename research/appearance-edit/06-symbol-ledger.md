@@ -354,7 +354,7 @@ buttonWidgetPaint, buttonHoverSet, inkBlitCore, fmtByteCount (19).
 - **C blob layout** (supersedes 04-hap-format.md §6 and 11 §2): caps @+0x0C..0x0F in the **base** header (always); ext block = 12 B @+0x14; **palette precedes pixels**; size = hdr + rows + sec + (pal+1)*4. Full spec: `14-s1-c-blob-and-9slice.md`.
 - **9-slice runtime algorithm** (supersedes 11 §2): edges = per-pixel nearest-neighbour replication of the 1-pixel source edge (NOT texture stretch); centre (plain) = solid fill of sampled centre colour; centre (ext) = ext content fill with insets, centre fill skipped.
 - `hapBitmapObj+0x38` = **fill color** (not "fillMode", not trans color).
-- All 22 corpus screenshots examined (doc 15); `mouseicons.png` = `app-builtintheme-blank/mouseicons.png` (a wrong `ui-builtintheme/` path lookup earlier made it appear absent).
+- 11 more screenshots examined in S1 (17/22 total; doc 15); `mouseicons.png` = `app-builtintheme-blank/mouseicons.png` (a wrong `ui-builtintheme/` path lookup earlier made it appear absent).
 
 ### S1 addendum (named tables + IAT correction)
 

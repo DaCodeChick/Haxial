@@ -82,29 +82,31 @@ BeOS."*, **Created: 11 Dec 2002, 03:03:37 AM**, **Modified: 10 Jan
   (hatched close button, square window controls) is the appearance's
   window decoration resources.
 
-## Inventoried, not yet examined (backlog)
+Sessions S1 examined 11 more (2026-11-18): all 8 remaining
+`ui-builtintheme/` screens + `app-builtintheme-blank/{colors,mouseicons,
+icons}.png`. `colors.png` = D-role grid matched against `gColorRoleNames`
+(doc 16 §1); `mouseicons.png` = named %MSI/G cursor set (Standard, Standard
+Add, Standard Link, Text, Crosshair, Crosshair Dot, Crosshair Circle, Wait,
+No — rendered red under the built-in red theme, confirming mouse cursors
+are appearance resources; its bottom H scrollbar shows the cross-hatch
+"Grips" indicator, doc 16 §2); `icons.png` = general named icon list
+(Stop/Note/Caution/Question/Haxial/Exit/Settings/About/Help — matches the
+pstr table @0x4626D0 on disk; file-type names @0x462B70 corroborate
+fileicons.png). Details: `15-s1-widget-painters.md` §3–§7,
+`16-s1-named-resource-tables.md`.
+
+## Inventoried, not yet examined (backlog — 5 remaining, 17/22 done)
 
 | File | Group | Expected content (from name) |
 |---|---|---|
-| `app-beos/icons.png` | beos | E-section icon list (grid of widget icons, BeOS theme) |
-| `app-beos/fileicons.png` | beos | F/G file-icon set view (BeOS theme) |
-| `app-builtintheme-blank/colors.png` | builtin | D color grid (54 roles) |
+| `app-beos/icons.png` | beos | named icon list under BeOS theme |
+| `app-beos/fileicons.png` | beos | file-icon set (folder/… names @0x462B70), BeOS theme |
 | `app-builtintheme-blank/fileicons.png` | builtin | file-icon set, empty doc |
-| `app-builtintheme-blank/icons.png` | builtin | icon list, empty doc |
+| `app-builtintheme-blank/images.png` | builtin | images tab (C-section editor list), empty doc |
 | `app-builtintheme-blank/info.png` | builtin | info tab, blank doc (timestamp zero-state) |
-| `app-builtintheme-blank/mouseicons.png` | builtin | mouse cursor icon set (G/%MSI?) |
-| `ui-builtintheme/boxes.png` | builtin | box/frame widgets |
-| `ui-builtintheme/colorchooser.png` | builtin | color chooser dialog/widget |
-| `ui-builtintheme/hscrollbars.png` | builtin | horizontal scrollbars (mirror of vscrollbars) |
-| `ui-builtintheme/listlabelcolors.png` | builtin | list/label color assignments |
-| `ui-builtintheme/menu.png` | builtin | menu bar rendering |
-| `ui-builtintheme/popupmenu.png` | builtin | popup menu (off-window blit — `dcBlitDib` consumer?) |
-| `ui-builtintheme/sliders.png` | builtin | slider variants |
-| `ui-builtintheme/tickbuttons.png` | builtin | tick/checkbox/radio variants |
 
-High-value next: `popupmenu.png` (off-window DIB path),
-`colors.png` (D-role grid), `mouseicons.png` (%MSI/mouse set),
-`hscrollbars.png` (geometry mirror check).
+Remaining 5 are list views corroborating name tables already recovered from
+the binary (doc 16); low architectural value.
 
 ## Cross-checks enabled by these screenshots
 

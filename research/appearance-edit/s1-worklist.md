@@ -96,9 +96,9 @@ C section in-file layout: [preamble 0x00..0x3F][table 512×u32 @+0x40 (C-relativ
 - **Batch 3 (9-slice)**: FULLY RESOLVED with corrections (doc 14): base-header caps, palette-before-pixels, per-pixel edge replication, centre fill / ext content fill. Tiling byte-exact on built-in A.
 - **Batch 4 (D colors)**: styleColorGet + 54 roles + fallback resolved (doc 13 §2.1); **role NAMES found** in gColorRoleNames (doc 16 §1); per-painter role-index constants still open.
 - **Batch 5 (text/font)**: inkBlitCore (0x44DFE0) = ink/glyph blit core (bmpInkBlit/bmpTextDraw callers), colour bswap + entry table @+0x10 (doc 13 §2.3). E = ink/glyph section confirmed as the text path. .fnt → ink pipeline open.
-- **Batch 6 (screenshots)**: all 22 examined (doc 15 §3–7, doc 10 updated). mouseicons.png = app-builtintheme-blank/ (path correction).
+- **Batch 6 (screenshots)**: 11 more examined (17/22 total; doc 15 §3–7, doc 10 updated). mouseicons.png = app-builtintheme-blank/ (path correction).
 - **Batch 7 (deferred decompiles)**: 0x41A300 = fileClose (registry unlinks ×2), 0x43A610 = fmtByteCount — both resolved (doc 13 §5).
-- **BONUS**: on-disk EXE scan found gColorRoleNames (53 D roles + 6 groups) and gEIconNames (155 E icons) — doc 16; and corrected the R0-A.3 "provider vtable" hypothesis → .idata IAT (doc 16 §3). PE section table recovered (.text/.rdata/.data/.rsrc/.bss offsets).
+- **BONUS**: on-disk EXE scan found gColorRoleNames (53 D roles + 6 groups) and gEIconNames (155 E icons) — doc 16; and corrected the R0-A.3 "provider vtable" hypothesis → .idata IAT (doc 16 §3). PE section table recovered (.text/.rdata/.data/.rsrc/.bss offsets). Late-batch screenshots: colors (D roles → gColorRoleNames), mouseicons (named %MSI cursor set — cursors are appearance resources), icons (named icon list matching pstrs @0x4626D0).
 
 ### Ghidra session total (all read-back verified)
 - Function renames: 20 (nineSliceBlitC, dibSamplePixel, dibSamplePixelTrans, bmpFillChecked, nineSliceStretchH/V, cBlobHeaderDecode, extContentFill, bmpBlitAlpha, widgetStateSet, skinInstall, hapHeaderValidateV2, skinApply, appearanceLoadInstall, appearanceResetDefault, styleColorGet, buttonWidgetPaint, buttonHoverSet, inkBlitCore, fmtByteCount)

@@ -143,11 +143,14 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 - **C-blob layout + 9-slice runtime — RESOLVED** (corrections to R0-A.2):
   caps in base header, palette before pixels, ext block @+0x14; edges =
   per-pixel replication, centre = solid fill / ext content fill. Doc 14.
-- **Screenshot backlog — CLEARED**: all 22 screens examined (doc 15, doc 10
-  updated). Note: `mouseicons.png` lives in `app-builtintheme-blank/`
-  (an earlier look in `ui-builtintheme/` missed it); `colors.png` is
-  `app-builtintheme-blank/colors.png`. The %MSI mouse-icon consumer has
-  dedicated screenshot evidence (mouseicons.png).
+- **Screenshot backlog — 11 of 22 examined in S1** (17/22 total; doc 15,
+  doc 10 updated): all 8 remaining `ui-builtintheme/` screens (boxes,
+  colorchooser, hscrollbars, listlabelcolors, menu, popupmenu, sliders,
+  tickbuttons) + `app-builtintheme-blank/{colors,mouseicons,icons}.png`
+  (D-role grid → `gColorRoleNames`; named %MSI/G cursor set; general named
+  icon list matching pstr table @0x4626D0). 5 remain (icon/file-icon/info
+  list views; corroborative only — name tables already recovered from the
+  binary, doc 16).
 - **Formatters — RESOLVED**: `fmtByteCount` (0x43A610), `fmtSignedInt`
   (R0-A.3).
 - **fileClose registry — RESOLVED**: 0x41A300 unlinks two registry keys
@@ -189,8 +192,9 @@ corpus)**
    same discipline as `09` §1).
 
 **Stage S2 — Remaining evidence closure**
-6. ~~Examine the 16 unexamined screenshots...~~ **DONE (S1)** — all 22 screens
-   examined; doc 15 §3–§7. `mouseicons.png` = `app-builtintheme-blank/`.
+6. ~~Examine the unexamined screenshots...~~ **11 done (S1)** — 17/22
+   total; doc 15 §3–§7, doc 10. 5 list views remain (corroborative; name
+   tables already recovered from the binary, doc 16).
 7. State-record fields (item 3) + widget-descriptor blocks `0x4649xx`–
    `0x465xxx` (volume-map referents) — u16 metric meanings.
 8. WndProc/menu dispatch (item 10) + DDE (item 4) + subsystem inits (item 9)
