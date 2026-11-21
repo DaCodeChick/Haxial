@@ -163,7 +163,8 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 2. D role → widget-element mapping (which of the 54 roles paints which
    element, per painter).
 3. Runtime layout of embedded blob B (0x4683D4) beyond +0x52/+0x60/+0x64;
-   TSLC table (0x466DD4) assembly mechanism.
+   blob-B assembly table (0x466DD4, 84 pointers; contains a "TSLC" string at
+   +0xE8 — unrelated to the CLST list class, see 17 §6).
 4. E-section runtime ink object layout (only byte length tracked globally);
    .fnt → ink pipeline.
 5. C-blob `field0`/`field2`/`field4` semantics; secondary-mode (flags

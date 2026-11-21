@@ -43,15 +43,30 @@ generic `searchRecords` binary search (`0x4401C0`).
 
 ### 1.1 Header — `rezHeader` (24 B, applied at `0x45F830` as `rezBuiltinHeader`)
 
-| Offset | Size | Value | Meaning |
-|---|---|---|---|
-| +0x00 | 4 | `%REZ` (ASCII) | tag |
-| +0x04 | 1 | `00` | unknown |
-| +0x05 | 4 | `01 00 00 00` (u32LE) | version = 1 |
-| +0x09 | 8 | `0x3C98` (u64LE) | unknown (total payload bytes? — *deferred*) |
-| +0x11 | 3 | zero | pad |
-| +0x14 | 4 | `09 00 00 00` (u32LE) | record count = 9 |
-| +0x18 | 4 | → `0x45F848` | records (here a direct address; relative elsewhere) |
+**Code-verified against both consumers** (`lookupBuiltInRec` `0x445830`,
+`lookupBuiltInRecSoft` `0x445900`): the header address is **hardcoded**
+(`MOV EDI, 0x45f830`); the only field read is `countBE` @+0x14 (loaded as LE,
+then byte-swapped); the record base is the **structural offset +0x18**
+(`LEA ECX, [EDI+0x18]` — there is **no record pointer field**); stride 0x14
+is a literal in the call.
+
+| Offset | Size | Value | Meaning | Read by consumers? |
+|---|---|---|---|---|
+| +0x00 | 4 | `%REZ` (ASCII) | tag | No (address hardcoded) |
+| +0x04 | 1 | `00` | unknown | No |
+| +0x05 | 1 | `01` | version (probable) | No |
+| +0x06 | 2 | zero | pad | No |
+| +0x08 | 4 | `00 00 3C 98` = **u32BE 0x3C98** | **total registry span** = header(0x18) + records(9×0x14=0xC0) + payload pool(0x3BC0) — exact arithmetic match | No (in this binary) |
+| +0x0C | 4 | zero | unknown | No |
+| +0x10 | 4 | zero | unknown | No |
+| +0x14 | 4 | `00 00 00 09` = **u32BE 9** | record count | **Yes** (LE load + bswap) |
+| +0x18 | — | — | records begin (structural, no pointer) | base |
+
+> **Correction to the A1 layout:** there is no "record table pointer" at
+> +0x18 — the 24-byte header ends exactly where the records begin. The
+> A1 "u64LE 0x3C98 @+0x09" reading is superseded: the value is a **u32BE
+> total-span** at +0x08 (bytes `00 00 3C 98`), matching the actual layout to
+> the byte.
 
 ### 1.2 Record — `rezRec` (20 B, applied as `rezRec[9]` at `0x45F848` as `rezBuiltinRecords`)
 
@@ -153,23 +168,24 @@ Applied at the six doku records (`dokuVwinDesc 0x4605D8`, `dokuKnt1Desc
 | +0x0A | 2 | h, u16BE |
 | +0x0C | 4 | **instance** FourCC, ASCII (lowercase) → `widget+0x2C`; matched against the window's instance table |
 | +0x10 | 4 | flags, u32BE → `widget+0x30` |
-| +0x14 | 4 | payload size, u32BE (`round4`; 0 for leaf widgets with no payload) |
+| +0x14 | 4 | **payload size**, u32BE — bytes following the fixed 40-byte header, before the children (0 = none; VWIN = 0x2C = 44 = the window-own block; KNTR = 12 = all-zero reserved in built-ins) |
 | +0x18 | 4 | f18 (0 in all built-ins; open) |
 | +0x1C | 4 | f1c (0 in all built-ins; open) |
-| +0x20 | 2 | mode, u16BE — bit `0x04` → post-init call `FUN_00409850(widget)`; `(mode & 0x18) | 1` → `widget+0x34` |
-| +0x22 | 1 | b22 → 4th arg of `classInit` |
-| +0x23 | 1 | b23 → `widget+0x37` |
+| +0x20 | 2 | mode, **u16BE** (LE-loaded then byte-swapped in code) — bit `0x04` → post-init call `FUN_00409850(widget)`; `(mode & 0x18) | 1` → `widget+0x34` (verified: `MOV word [EAX+0x34], DX` after `AND 0x18; OR 1`) |
+| +0x22 | 1 | b22 → 4th arg of `classInit` (verified `MOVZX … [EAX+0x22]`) |
+| +0x23 | 1 | b23 → `widget+0x37` (verified `MOVZX … [EAX+0x23]`) |
 | +0x24 | 2 | pad (0) |
-| +0x26 | 2 | **childCount**, u16BE — number of child `widgetDesc`s that follow |
+| +0x26 | 2 | **childCount**, **u16BE** (LE-loaded then byte-swapped; verified against the 8 KNTR children / 1 VWIN child in raw data) |
 | +0x27 | 1 | pad (0) |
 
-After the 40-byte fixed part comes the payload (if `size` > 40 — e.g. labels
-carry their text as a pstr immediately after), then the child records.
-`widgetInstantiate` consumes the record: validates `size ≥ 0x28`… (records
-are 40 B; the check guards the *instantiated object*), looks up the class,
+After the 40-byte fixed part comes the payload (if `size` > 0 — e.g. the VWIN
+record's 44-byte window-own block; labels carry their text pstr), then the
+child records. `widgetInstantiate` consumes the record: looks up the class,
 allocates `max(classObj->size, 0x38)` zeroed, fills the base widget (§5),
-calls `classInit(child, desc, classCode, b22)` if `classObj+0x0C`, post-init
-if `mode & 4`, advances by `round4(size)`, recurses `childCount` times.
+calls `classInit(child, desc, classCode, b22)` if `classObj+0x0C` is non-null
+(note: `0x409BD0` — used by VUU!/LSTS/CLST — is a single `RET` no-op),
+post-init if `mode & 4`, advances by `round4(40 + size)`, recurses
+`childCount` times (loop bound verified: `childCount-1` with `JC` skip at 0).
 
 **Instance registration** (CONFIRMED): the window carries an instance table
 (8-byte entries `{u32 name (LE-stored), u16 slotByteOffset, u16 0}`); after
@@ -257,8 +273,8 @@ All 21 catalogued class objects (memory tag = reversed canonical):
 | `0x466188` | `DNIW` | `WIND` (window) | 0x28 | `0x0` (none) | direct ref `0x408705` |
 | `0x466690` | `RTNK` | `KNTR` (container) | 0x70 | — | fast path |
 | `0x466C80` | `STXT` | `TXTS` (text) | 0x5C | — | fast path |
-| `0x466D44` | `STSL` | unknown ("LSST"? list?) | 0x4C | `0x409BD0` | ref `0x420C56` |
-| `0x466E08` | `TSLC` | unknown ("CLST" = class?) | 0x54 | `0x409BD0` | ref `0x421886` |
+| `0x466D44` | `STSL` | `LSTS` (list) | 0x4C | `0x409BD0` (no-op) | ref `0x420C56`; ctor `lstsWidgetCtor` |
+| `0x466E08` | `TSLC` | `CLST` (column list) | 0x54 | `0x409BD0` (no-op) | ref `0x421886`; ctor `clstWidgetCtor` |
 | `0x466ECC` | `SGMI` | `IMGS` (image) | 0x64 | — | registered |
 | `0x4674A0` | `NTUB` | `BUTN` (button) | 0x40 | `0x4352C0` | fast path |
 | `0x467564` | `LBLK` | `KLBL` (klabel) | 0x48 | — | fast path |
@@ -288,11 +304,44 @@ Registration: `widgetClassRegister` (`0x409100`) searches
 (`0x440B70`) then inserts (`0x440790`) the object pointer into the dynamic
 table `[gClassTblPtr 0x466B58] / [gClassCount 0x466B5C]`; called at startup
 by 11 `classReg*` thunks (callers include `constructApp 0x403D30`).
-`STSL`/`TSLC` are *not* in the registered set — they are referenced directly
-(`0x420C56`, `0x421886`), like `WIND`. **PROBABLE:** `TSLC` is the class
-behind the HAP **D section** (its tag `TSLC` is identical to the D-section
-tag in `.hap` files — the 54 style-color roles); `STSL` PROBABLE "list"
-variant. **HYPOTHESIS** — both need consumer-side code reads (Batch E/G).
+`LSTS`/`CLST` are *not* in the registered set — they are referenced directly
+(`0x420C56`, `0x421886`), like `WIND`. **RESOLVED (A3, 2026-11-20):** both
+are LIST widget classes — `LSTS` = single-column list, `CLST` = multi-column
+list ("column list"); full consumer analysis in doc 18. **The earlier
+D-section association is DISPROVEN**: `.hap` files frame sections by header
+offset fields (corpus-verified — v1/v2 carry no FourCC section tags, only the
+`%HAP`/`%IKN`/`%MSI` magics), and D-section colors flow through
+`gStyleDColors`/`styleColorGet` (S1) with no code path to the CLST class. The
+only other "TSLC" string in the binary is inside the embedded-blob assembly
+table @0x466DD4 (doc 13 §3) — an unrelated mechanism.
+
+### 6.1 Class-object method-table structure (verified by cross-class comparison)
+
+Class objects are **method tables** (virtual-table style, but NOT C++ vtables:
+no function-pointer-to-interface indirection — each slot is a concrete
+function, and dispatch sites load the slot and call it directly). `VUU!`
+(`0x4660C4`) is the **base class** (slots from the `0x409Bxx–0x409Dxx`
+generic-method cluster); each other class overrides individual slots and keeps
+the base methods elsewhere.
+
+Verified slot roles (evidence from call sites):
+
+| Slot | Role | Evidence |
+|---|---|---|
+| +0x00 | tag (constant stored LE) | `widgetClassLookup` compare |
+| +0x08 | instance size | `widgetInstantiate` alloc |
+| +0x0C | `initFn` | called by `widgetInstantiate` `(widget, desc, classCode, b22)`; **`0x409BD0` is a single `RET` — a no-op placeholder** used by VUU!/LSTS/CLST (those are initialized by their direct constructors / payload parsers instead) |
+| +0x10 | **teardown/cleanup method** | CLST's (0x4218A0) frees widget+0x3C via `listModelDtor` (magic check 0x8521B2D1), frees the view at +0x38 (0x447670), destroys +0x4C (0x44CAF0) |
+| +0x14 | always NULL in all 21 classes (reserved) | data |
+| +0x18 | hit-test / cursor-column by x | 0x421130 (LSTS/CLST): view+model ops on x; reads widget+0x40 (CLST-only field; zero-tolerant for LSTS) |
+| +0x5C | state-notify | S1; LSTS/CLST override 0x4210D0: view flags from state bits 0x12/0x4, model selection from 0x14 |
+| +0x88 | attachFn | `widgetInstantiate` parent attach |
+
+`LSTS` and `CLST` share **19 of 21** non-null slots (identical function
+addresses) — differing only in tag, size, and +0x10 (teardown 0x421090 vs
+0x4218A0). Their shared +0x18..+0x34 override block (0x421130, 0x41F820…)
+is the list-specific method set; +0x38/+0x58/+0x60 remain base methods
+(0x409D40/0x409DB0/0x409DF0).
 
 Canonical-name semantics (user-supplied, PROBABLE): `VWIN` = view window,
 `TIKB` = tick button, `%VUU` = "view", `KNTR` = (K)container, `KOLR` =
@@ -422,7 +471,7 @@ No C-string boundaries were altered.
 - **Data (31 unique; 34 ops = 28 new + 6 corrections/additions):**
   `rezBuiltinHeader rezBuiltinRecords gClassTblPtr gClassCount dokuInstTable
   prvwInstTable emikInstTable efikInstTable esikInstTable epxmInstTable
-  classVuu classWind classKntr classStsl classTslc classImgs classButn
+  classVuu classWind classKntr classLsts classClst classImgs classButn
   classKlbl classLabl classBox classSepr classMbar classKolr classSldr
   classPrgs classIkon classBpmn classIkbt classTikb classHold` (A2
   corrections/renames: Rolr→Kolr, Rabl→Mbar, Rldr→Sldr; added Wind/Stsl/Tslc)
@@ -440,7 +489,7 @@ No C-string boundaries were altered.
 2. S1 "u16 state @+0x0D" and "button rect @+0x2C..+0x38": superseded by §5
    (re-audit in C1).
 3. A1 `classRolr`/`classRabl`: renamed `classKolr`/`classMbar` (§6).
-4. "18 widget classes": actual count **21** (adds WIND, STSL?, TSLC?; SLDR
+4. "18 widget classes": actual count **21** (adds WIND, LSTS, CLST; SLDR
    was already catalogued as "RLDR" — corrected to SLDR here).
 5. `0x4625C0–0x462700` "widget class descriptor pool" (S1): actually **prvw
    window child records** (TIKB/IKBT/IKON/KNTR/SEPR/BPMN widgets of the live
@@ -456,12 +505,11 @@ No C-string boundaries were altered.
   record.
 - **C1:** per-function parameter/local audit gate for all renamed functions;
   widgetStateSet re-audit against the corrected base layout.
-- **E/G:** `STSL`/`TSLC` consumer code (`0x420C56`, `0x421886`) — confirm
-  the D-section = TSLC class link; §10 part tables → D-role indices.
+- **E/G:** §10 part tables → D-role indices. (LSTS/CLST consumer analysis
+  RESOLVED in A3 — list widget classes, not D-section; see doc 18.)
 - **F:** built-in 8×8 font block at `0x4709xx–0x478xxx` (`wvgw` glyphs etc.).
 - **Remaining descriptors:** full doku tree (12+ more records), prvw tree
   (29 instances), epxm tree (18), %MNU item decode for all 3 menus.
-- **rezHeader +0x09 u64 `0x3C98`:** purpose open. Sum of the 9 payload sizes
-  = 0x3BA4; pool end relative to header = 0x2968 + 0x1328 = 0x3C90; header +
-  records + pool = 0x3C40. None equals 0x3C98 (off by 0xF4 / 0x08 / 0x58
-  respectively) — not a simple total.
+- **rezHeader +0x0C/+0x10:** purpose open (both zero; not read in this
+  binary). `+0x08 totalSpanBE` value exact (0x3C98) but writer-side semantics
+  unverified (no writer in this binary — registry is static).

@@ -411,8 +411,8 @@ verified (symbol probes + disassembly constant checks).
 | (unnamed) | classVuu | 0x4660C4 | tag !UUV (VUU! rev), size 0x38 |
 | (unnamed) | classWind | 0x466188 | tag DNIW (WIND rev), size 0x28; direct ref 0x408705 — **new in A2** |
 | (unnamed) | classKntr | 0x466690 | tag RTNK, size 0x70 |
-| (unnamed) | classStsl | 0x466D44 | tag STSL (canonical unknown), size 0x4C; ref 0x420C56 — **new in A2** |
-| (unnamed) | classTslc | 0x466E08 | tag TSLC, size 0x54; ref 0x421886; PROBABLE D-section class — **new in A2** |
+| (unnamed) | classLsts | 0x466D44 | tag STSL (stored LE of BE `LSTS`), size 0x4C; single-column list widget class — **new in A2, resolved in A3** |
+| (unnamed) | classClst | 0x466E08 | tag TSLC (stored LE of BE `CLST`), size 0x54; multi-column list widget class — **new in A2, resolved in A3** (D-section association DISPROVEN) |
 | (unnamed) | classImgs | 0x466ECC | tag SGMI, size 0x64 |
 | (unnamed) | classButn | 0x4674A0 | tag NTUB, size 0x40 |
 | (unnamed) | classKlbl | 0x467564 | tag LBLK, size 0x48 |
@@ -446,3 +446,29 @@ verified (symbol probes + disassembly constant checks).
   window instance table slot.
 - Geometry stored as i16 in u32 slots: raw @+0x0C..+0x1B, scaled @+0x1C..+0x2B
   (scaleQuad × gScaleNum/gScaleDen).
+
+### A3 additions — CLST/LSTS resolution (2026-11-20)
+
+| Old | New | Address | Evidence |
+|---|---|---|---|
+| FUN_004215A0 | clstWidgetCtor | 0x4215A0 | full decode: alloc ≥0x54, magic, geom+scaleQuad, mode/flags, parent attach (classObj+0x88), listViewCtor→+0x38, listModelCtor→+0x3C, 6 model handlers + 2 view handlers, CLST-only column data (FUN_0044C910→+0x4C, +0x40, +0x50), class ptr → +0x04 |
+| FUN_004209E0 | lstsWidgetCtor | 0x4209E0 | same shape, ≥0x4C, no column data, view flags param6 unmodified |
+| FUN_00447590 | listViewCtor | 0x447590 | alloc 0xAC/0x104, magic 0xFDB6D01A, geom @+0x04, flags @+0x2C, callback @+0x54, back-ptr @+0x58, metric u16 0x10 @+0x38, const 3 @+0x50, 0xFFFFFF00 @+0x78 |
+| FUN_00422EB0 | listModelCtor | 0x422EB0 | alloc 0xC8, magic 0x8521B2D1, 4-word seed @+0x04, source code @+0x18, -1 fields @+0x1C..+0x28/+0xC0, byte 1 @+0x62 |
+| FUN_00422F30 | listModelDtor | 0x422F30 | magic check 0x8521B2D1; per-element teardown (count @+0x40, array @+0x3C, element callback @+0x80, arg @+0x84); frees @+0xBC, @+0x30 |
+| classStsl | classLsts | 0x466D44 | **correction**: canonical spelling is BE reading of stored tag = `LSTS` (not "LSST") |
+| classTslc | classClst | 0x466E08 | **correction**: canonical = `CLST`; D-section association disproven (no FourCC section tags in .hap; D colors via gStyleDColors path) |
+
+Plate comments: classClst @0x466E08, classLsts @0x466D44 (full semantics).
+
+**Findings:** CLST/LSTS = list widget classes (single vs multi-column). Both
+use direct (non-%VUU) constructors. View object magic 0xFDB6D01A; model object
+magic 0x8521B2D1 (item container with per-element destructors). Shared initFn
+0x409BD0 = `RET` no-op. Consumers: doku (docCreate) builds 2×CLST
+("Icon"/"Name" columns @0x466054/0x46605C; +1 more) and 2×LSTS (0x130, 0xDF8
+bytes); prvw builds 2×CLST ("Column 1/2" @0x45F174/0x45F180; "Name"/"Info"
+@0x45F4D4/0x45F4DC); efik/emik/esik each 1×CLST (emik: 0x1D4B, 13 entries
+@0x465F1C); epxm 1×LSTS (0xDF8); 0x417CD0←0x417E90, 0x414EA0←0x416C40/0x416530
+(other LSTS users). Model source codes observed: 4, 0x102, 0x103, 0x200, 0x204,
+0x205, 0x214, 0x215 (meaning open). Column def record: {ptr header pstr} +
+{u16 6, w, w, h?, cap?, x?} stride 0x18 (header and def interleaved).

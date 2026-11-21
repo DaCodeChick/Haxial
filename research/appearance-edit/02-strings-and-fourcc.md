@@ -56,7 +56,8 @@ tag word (no bswap) — verified from the `0x409150` subtract-chain.
 
 **Widget class FourCCs (21 classes, doc 17 §6):** descriptor spelling —
 `VUU!` (view, base), `WIND` (window), `KNTR` (container), `TXTS` (text),
-`STSL`-class (canonical open), `TSLC`-class (D-section colors, PROBABLE),
+`LSTS` (list, resolved A3), `CLST` (column list, resolved A3 — the earlier
+D-section-colors hypothesis is disproven, see 17 §6),
 `IMGS` (image), `BUTN` (button), `KLBL` (klabel), `LABL` (label), `BOX!`,
 `SEPR` (separator), `BPMN` (menu button), `IKBT` (icon button), `KOLR`
 (color; K-swap of COLR), `PRGS` (progress), `SLDR` (slider), `HOLD` (holder),

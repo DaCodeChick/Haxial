@@ -164,7 +164,7 @@ flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char stri
   widget descriptors (class/geom/instance/flags/size/mode/childCount) code-verified
   through `vuuPayloadParse`/`widgetInstantiate` (doc 17 §2–3).
 - **Class registry: 21 class objects** — tag = code constant stored u32LE
-  (byte-reversed spelling in memory); sizes/initFns verified; 3 new (WIND/STSL/TSLC);
+  (byte-reversed spelling in memory); sizes/initFns verified; 3 new (WIND/LSTS/CLST);
   3 name corrections (KOLR/MBAR/SLDR) — doc 17 §6.
 - **FourCC convention** — three representations (memory-ASCII / BE code constant /
   LE-stored tag), bswap sites identified; string-vs-FourCC re-audit of all 358
@@ -178,6 +178,6 @@ flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char stri
   40, widgetBase 56, widgetClassObj 144 — all size-verified), 29 applications.
 - Docs: `17-s2-fourcc-records.md` (new), `02-strings-and-fourcc.md` §1.4 rewritten,
   `06-symbol-ledger.md` (S2 section), `s2-worklist.md` checkpoint.
-- Remaining S2 batches: A2b (prvw tree, TSLC fragment, gOncePtr), B (paint dispatch),
+- Remaining S2 batches: A2b (prvw tree, blob-B assembly table, gOncePtr), B (paint dispatch),
   C (enrichment gate), D (geometry), E (resources/colors), F (font), G (C-blob),
   V (validation + docs 18–21).

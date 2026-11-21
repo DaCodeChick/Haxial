@@ -229,35 +229,122 @@ reconstruct the enclosing records, not just the FourCC pairs.
     registries); editor's own list cells take the blit-pair/text paths.
     Marked PROBABLE (no disproof that editor ever hits it).
 
+### Completed — A3 CLST/LSTS + B reconciliation (2026-11-20, resumed from 627febf)
+
+- **CLST/LSTS RESOLVED (Priority A):** both are LIST widget classes.
+  - `classClst` 0x466E08 (tag TSLC = stored LE of BE **CLST**), size 0x54 —
+    multi-column list ("column list").
+  - `classLsts` 0x466D44 (tag STSL = stored LE of BE **LSTS**), size 0x4C —
+    single-column list. (Spelling correction applied: earlier "LSST" wrong.)
+  - Both share 19/21 method slots (class objects = method tables; VUU! is the
+    base class, 0x409Bxx–0x409Dxx generic cluster; +0x14 always NULL; +0x10 =
+    teardown; shared initFn 0x409BD0 = single RET no-op). Doc 17 §6.1.
+  - Direct constructors (NOT %VUU-descriptor path): `clstWidgetCtor` 0x4215A0,
+    `lstsWidgetCtor` 0x4209E0. Both: memAllocZeroed(≥class size), magic
+    0x5655d881, raw geom → +0x0C.., scaleQuad → +0x1C.., mode = (flags bits
+    0x200/0x100 → 0x10/0x08) | 1 → +0x34, +0x36 = 0x20 if flags&0x400, +0x37 =
+    (char)flags, +0x30 = classCode, parent attach (magic 0x10019, classObj+0x88
+    non-null 0x10002), mode |= 0x20 post-attach.
+  - Sub-objects: `listViewCtor` 0x447590 (view, 0xAC/0x104 B, magic
+    **0xFDB6D01A**, geom @+0x04, flags @+0x2C (bit-normalized), u16 metric 0x10
+    @+0x38, const 3 @+0x50, callback @+0x54, back-ptr @+0x58, 0xFFFFFF00
+    @+0x78, extra param @+0x74) → widget+0x38; `listModelCtor` 0x422EB0 (model,
+    0xC8 B, magic **0x8521B2D1**, 4-word seed @+0x04, source code @+0x18, -1s
+    @+0x1C..+0x28/+0xC0, byte 1 @+0x62) → widget+0x3C; `listModelDtor` 0x422F30
+    (magic check, per-element teardown: count @+0x40, array @+0x3C, element cb
+    @+0x80, arg @+0x84; frees @+0xBC, @+0x30).
+  - CLST-only: column data via FUN_0044C910(NULL, colData, colCount, 0x4219B0,
+    widget) → +0x4C; +0x40 = FUN_0044CBE0(view); +0x50 = FUN_0044D520(view);
+    FUN_00447B20(view, 0x14, 0, 0x14, 0). Column defs: interleaved {ptr to
+    header pstr} + {u16: 6, w, w, 0x3C, cap(0x1F4=500), x} stride 0x18.
+    Headers seen: "Column 1/2" (0x45F174/0x45F180, prvw demo), "Name/Info"
+    (0x45F4D4/0x45F4DC, prvw), "Icon/Name" (0x466054/0x46605C, emik).
+  - Consumers: docCreate (doku) builds CLST 0x1D4 (emik-style icon list, 13
+    entries table @0x465F1C) + CLST via 0x4056B0/0x4049E0 + LSTS 0x130 (0x403F80)
+    + LSTS 0xDF8 (0x4065A0); prvw (FUN_00401E30) builds 2×CLST (0x401A20: 2-col
+    "Column 1/2" w/ "an item"/"123K" sample data @0x45F1C0; 0x401BB0: 3-col
+    "Name/Info"); efik 0x4056B0, esik 0x4049E0 (CLST); epxm 0x4065A0 (LSTS 0xDF8);
+    0x417CD0 (LSTS 0x4C) ← 0x417E90; 0x414EA0 (LSTS 0x5C) ← 0x416C40/0x416530.
+  - Model source codes (ctor param7): 4, 0x102, 0x103, 0x200, 0x204, 0x205,
+    0x214, 0x215 (meaning open — PROBABLE dataset family|index).
+  - **D-section association DISPROVEN**: .hap files frame sections by header
+    offset fields (corpus-verified: v1 header has no FourCC section tags; only
+    %HAP/%IKN/%MSI magics); D colors flow via gStyleDColors/styleColorGet (S1).
+    The other "TSLC" string is inside the blob-B assembly table 0x466DD4 (doc
+    13 §3) — unrelated. Doc 17 §6, doc 02, 07-open-questions updated.
+  - Ghidra: renames classTslc→classClst, classStsl→classLsts +
+    clstWidgetCtor/lstsWidgetCtor/listViewCtor/listModelCtor/listModelDtor;
+    plate comments @0x466E08, @0x466D44. Ledger A3 section written.
+
+- **B reconciliation (Priority B) — COMPLETE:**
+  - rezHeader REBUILT + code-verified (lookupBuiltInRec 0x445830 + soft
+    0x445900): header address hardcoded; ONLY +0x14 (count u32**BE**, LE-load +
+    bswap) is read; records always at structural +0x18 (NO pointer field —
+    A1's "records ptr" wrong); +0x08 = u32**BE** totalSpan 0x3C98 (exact:
+    0x18+0xC0+0x3BC0); +0x04/+0x05 (version=1)/+0x0C/+0x10 not read in this
+    binary (static registry, no writer here). Structure rezHeader replaced
+    (8 components, 24 B).
+  - rezRec verified: type @+0x00 / instance @+0x04 (builtinRecCmp bswaps both
+    vs BE code-constant keys; difference-based predicate), size u32BE @+0x0C
+    (→ sizeOut), offset u32BE @+0x10 + header (return), flags @+0x08 NOT read
+    (reserved here), stride 0x14 literal. MENU/scal = record 3 (type,instance)
+    — preserved, no eight-char string.
+  - widgetDesc re-verified vs disassembly: mode u16BE @+0x20 (LE load +
+    SHL/SAR/OR swap; (mode&0x18)|1 → widget+0x34 via `MOV word [EAX+0x34],DX`),
+    b22 @+0x22, b23 @+0x23 (MOVZX byte), childCount u16BE @+0x26 (swapped;
+    KNTR=8, VWIN=1 verified in raw data), size u32BE @+0x14 = PAYLOAD bytes
+    after the fixed 40 (VWIN=44 = window-own block; KNTR=12 = zeroed reserved);
+    record advance = 40+size (verified: 0x46062C→0x460660 = 52; 0x4605D8→
+    0x46062C = 84). No field overlap; layout CONFIRMED.
+  - Class inventory: 21 classes reconciled across docs (7 fast-path, 11
+    registered, WIND direct, LSTS/CLST direct; SLDR corrected from "RLDR").
+
 ### In progress
-- **A2 (adjusted with user input 2026-11-20):**
-  (1) User listed strings separately; found several FOUR-CHAR CODES LISTED AS
-  STRINGS — removed them from their list. Our docs must reclassify (4cc vs
-  genuine string).
-  (2) User confirms node model: class ID + instance FourCC ("VWIN' for view
-  window, TIKB for tick button/checkbox, etc) followed by a four char code
-  identifier (ie. doku)") — matches our code-verified model.
-  (3) "%VUU" means 'view'; developer naming eccentricity: C for K swaps
-  (explains KOLR=COLR, KLRS≈CLRS, KREA≈CREA, KNTR≈KONTAINER). User-supplied =
-  PROBABLE semantics.
-  (4) "Far too many to list" — we list strings and diff ourselves.
-  **(a) COMPLETE (2026-11-20):** full printable-run audit of .rdata+.data
+- **A3/C3: prvw window tree** (next concrete task) — payload 0x4621A0, 0x1328 B,
+  29 instances; child records from 0x4621A8+ (VWIN desc + 44 B payload, then
+  children); known: MBAR (0x462244, inst mbar), KNTR (0x462210 "Items"?), TIKB
+  cluster 0x46256C-0x462908 (live-preview tick buttons: Tick Button/Ticked/
+  Untated...), IKBT 0x463254/0x4632A8 ("...Dis ..." icon buttons), IKON
+  0x46263C, BPMN 0x462538 ("Default"), HOLD 0x46239C ("list" inst? — HOLD desc
+  near pstr "list"), SLDR cluster 0x4623F4-0x462D44 (10 slider records), KOLR
+  absent here (KOLR in doku/epxm), PRGS 0x4623B8 (inst pbar), pbsl 0x462400,
+  sbht/sbhi/sbvd/sbvs/sbvt/sbvi scrollbar records 0x462E08-0x463114, SEPR
+  0x462A88. Full walk pending (validate via childCount/payload sizes, not
+  visual indentation).
+- **B2 (paint dispatch)** — pending: method-table slot roles partially known
+  (+0x0C init, +0x10 teardown, +0x18 hit-test, +0x5C stateNotify, +0x88 attach);
+  WM_PAINT walker still open (S1 open question 1).
+
+### Pending
+- C1 (enrichment gate incl. list-widget ctor params), D (geometry: scrollbar/
+  slider part tables 0x45F6xx/0x45F0xx consumers), E (resources: D roles,
+  E icons, ink objects, blob-B assembly 0x466DD4, gOncePtr 0x46698C→0x47B324),
+  F (font/text), G (C-blob field0/2/4 + secondary modes), V (validation: 5
+  remaining screenshots, docs 18–21, final audit + commit).
+
+### Completed — A2 (string re-audit + class tag discovery, 2026-11-20)
+
+User input folded in: (2) node model = class ID + instance FourCC ("'VWIN'
+for view window, TIKB for tick button/checkbox, etc) followed by a four char
+code identifier (ie. doku)") — matches our code-verified model; (3) "%VUU" means
+'view'; developer C↔K naming eccentricity (KOLR=COLR, KLRS≈CLRS, KREA≈CREA,
+KNTR≈KONTAINER) — user-supplied = PROBABLE semantics; (4) user does not want
+to enumerate literals — we list strings and diff ourselves.
+- **(a) COMPLETE (2026-11-20):** full printable-run audit of .rdata+.data
   (6477 runs ≥3 chars; 358 four-char alphabetic). Results → doc 17 §11:
   - 17 reversed class tags found = all class objects minus 2 with '!' in tag
     (!UUV/VUU!, !XOB/BOX!) — **21 class objects total, no orphans**.
   - KEY FINDING: class-object tag @+0x00 stores the **code constant as u32LE**
     = byte-REVERSED spelling in memory (BKIT=TIKB, DNIW=WIND, RLOK=KOLR, RABM
     =MBAR, RDLS=SLDR, NMPB=BPMN, NOKI=IKON, SGRP=PRGS, SGMI=IMGS, RPES=SEPR,
-    RTNK=KNTR, STXT=TXTS, LBLK=KLBL, LBAL=LABL, DLOH=HOLD, TBKI=IKBT, STSL=?,
-    TSLC=?). widgetClassLookup compares the BE-reading argument DIRECTLY vs the
+    RTNK=KNTR, STXT=TXTS, LBLK=KLBL, LBAL=LABL, DLOH=HOLD, TBKI=IKBT, STSL=LSTS,
+    TSLC=CLST). widgetClassLookup compares the BE-reading argument DIRECTLY vs the
     tag word (no bswap) — verified from the 0x409150 disassembly subtract-chain
     (BUTN 0x4255544E, HOLD 0x484F4C44, KLBL 0x4B4C424C, KNTR 0x4B4E5452, LABL
     0x4C41424C, TXTS 0x54585453, VUU! 0x56555521).
   - NEW class objects: WIND @0x466188 (size 0x28, initFn 0 — the WINDOW class,
-    direct ref from 0x408705 in widgetAllocInit), STSL @0x466D44 (0x4C,
-    initFn 0x409BD0, ref 0x420C56 — PROBABLE "list"), TSLC @0x466E08 (0x54,
-    initFn 0x409BD0, ref 0x421886 — PROBABLE the D-section/class-colors class;
-    tag identical to HAP D-section tag).
+    direct ref from 0x408705 in widgetAllocInit), LSTS @0x466D44 (0x4C, list),
+    CLST @0x466E08 (0x54, column list) — both resolved in A3 (see above).
   - NAME CORRECTIONS applied in Ghidra: classRolr→**classKolr** @0x4679FC
     (KOLR = K-swap of COLR; descriptor spelling KOLR, always next to "Color:"),
     classRabl→**classMbar** @0x46824C (MBAR = menu bar; descriptor MBAR,
@@ -279,11 +366,9 @@ reconstruct the enclosing records, not just the FourCC pairs.
   - False-positive 4ccs identified (font glyphs wvgw/wwva/DJUZ/JwzZ, float
     tables QNaN/SNaN/eDDQ, Win32 class regs TXET "txt"/lTrP "trp"/ATAD "pah"/
     KRLK) — documented, not identifiers.
-  **(b) PENDING:** prvw window child-record mapping (TIKB/IKBT/IKON/KNTR/SEPR
-  /BPMN @0x4625C0-0x462700 = live-preview widgets); TSLC fragment blob 0x466DD4
-  (gBuiltinHapEvilChiaroscuroA); gOncePtr 0x46698C→0x47B324.
-  **NEXT CONCRETE:** propagate doc-02 FourCC reclassification + symbol-ledger
-  update for A2 renames, then B2 (dispatch) or (b) remainder per priority.
+- **(b) DONE via A3/B:** prvw child-record mapping = C3 (in progress above);
+  blob-B assembly table 0x466DD4 (84 pointers, "TSLC" string @+0xE8 — NOT the
+  CLST class) + gOncePtr 0x46698C→0x47B324 → Batch E.
 
 ## Carried from S1 (open items 1–9, doc 07 §5.1)
 1. WM_PAINT → per-child paint call site → **B2**
