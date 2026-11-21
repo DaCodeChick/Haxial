@@ -344,10 +344,12 @@ reconstruct the enclosing records, not just the FourCC pairs.
   Ledger C3 section written. Doc 17 §15 written; §14 updated.
 
 ### In progress
-- **B2 (paint dispatch)** — the four window methods 0x40C9A0/0x40CAC0/
-  0x40CB10/0x40CC30 + windowCtor internals (3 bodies, 0x288 B) + 0x46624C
-  default-paint data + the WM_PAINT → per-child paint walker (S1 open item 1).
-  Then %MNU item decode (menuPayloadParse field semantics via the 3 menus).
+- **B2 remainder (%MNU item decode)** — menuPayloadParse (0x412060) field
+  layout via the 3 built-in menus (exam 0x45F900, fsit 0x45FB18, scal
+  0x4602A8). Paint-dispatch half of B2 is **COMPLETE** (doc 18, committed
+  below): WM_PAINT → slot 0 labelPaint → [rootChildClass+0x1C] recursion;
+  14-slot pv method table decoded; 26 fns + 7 globals renamed, 28 comments,
+  15 prototypes, all verified.
 
 ### Pending
 - C1 (enrichment gate incl. list-widget ctor params), D (geometry: scrollbar/
@@ -435,7 +437,9 @@ to enumerate literals — we list strings and diff ourselves.
   metrics @0x466994; gStyleMetricBases @0x46703B).
 - styleColorGet @ 0x42A140 (54 roles, per-role fallback gStyleDColorsFallback).
 - inkBlitCore @ 0x44DFE0 (entry table @ ink+0x10, colour bswap).
-- hapTextObj @ 140 B, magic 0x01688173 @+0x08 (R0-A.3).
+- hapTextObj @ 140 B, magic **0xF0168873** @+0x08 (CORRECTED S2 B2; the
+  0x01688173 recorded in R0-A.3 was wrong). pv window record (0x120 B) is an
+  extended hapTextObj — see doc 18.
 - PE: .text VA 0x1000/raw 0x400; .rdata VA 0x53000/raw 0x52000; .data VA
   0x5F000/raw 0x5DA00; .rsrc VA 0x8A000/raw 0x88A00; .idata VA 0x8D000;
   .bss VA 0x8E000. On-disk EXE: /Users/schala/Downloads/AppearanceEdit.exe.

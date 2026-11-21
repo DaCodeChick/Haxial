@@ -178,6 +178,24 @@ flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char stri
   40, widgetBase 56, widgetClassObj 144 — all size-verified), 29 applications.
 - Docs: `17-s2-fourcc-records.md` (new), `02-strings-and-fourcc.md` §1.4 rewritten,
   `06-symbol-ledger.md` (S2 section), `s2-worklist.md` checkpoint.
-- Remaining S2 batches: A2b (prvw tree, blob-B assembly table, gOncePtr), B (paint dispatch),
-  C (enrichment gate), D (geometry), E (resources/colors), F (font), G (C-blob),
-  V (validation + docs 18–21).
+- **Batch A3 (2026-11-20)**: CLST/LSTS resolved as list widget classes (single/
+  multi-column); view 0xFDB6D01A / model 0x8521B2D1 objects; D-section
+  association disproven. **Batch B (part 1)**: rezHeader rebuilt + code-verified
+  (+0x08 totalSpan u32BE, +0x14 count u32BE, no record pointer); widgetDesc
+  re-verified (size = payload bytes after 40, advance 40+round4). **Batch C3**:
+  all six %VUU window trees walked EXACT (209 records / 89 instances, tool
+  `vuu_walk.py`, data `data/vuu-trees.txt`); widgetInstantiate fully re-decoded;
+  KNTR/BPMN payloads + window-own block decoded (doc 17 §15).
+- **Batch B2 (2026-11-21) — paint dispatch CLOSED**: the 0x120-B window record
+  (pv) is an **extended hapTextObj** (magic 0xF0168873 @+0x08 — corrects the
+  0x01688173 recorded in R0-A.3); 14-slot window method table (pv+0x10..+0x47)
+  decoded with defaults @0x46624C + per-window slot setters (winSlot6/8/12Set);
+  WM_PAINT chain fully traced: chrome 0x40E570 → slot 0 `labelPaint` →
+  `[rootChildClass +0x1C]` → `kntrPaint` recursion over child array
+  (kntr+0x38/+0x3C) → leaf painters → widgetBlit. Class slot table for all 21
+  classes (init/teardown/hasChildren/event-A/**paint +0x1C**/event-B/attach).
+  S1 open item 1 resolved. 26 fn + 7 global renames, 28 comments, 15
+  prototypes — all read-back verified (doc 18, new).
+- Remaining S2 batches: B2 remainder (%MNU item decode), C (enrichment gate
+  + widgetStateSet re-audit), D (geometry/part tables), E (resources/colors),
+  F (font), G (C-blob), V (validation + docs 19–21).

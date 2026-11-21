@@ -473,11 +473,56 @@ bytes); prvw builds 2×CLST ("Column 1/2" @0x45F174/0x45F180; "Name"/"Info"
 0x205, 0x214, 0x215 (meaning open). Column def record: {ptr header pstr} +
 {u16 6, w, w, h?, cap?, x?} stride 0x18 (header and def interleaved).
 
+### S2 B2 — paint dispatch closure (2026-11-21)
+
+**Corrections (flag old entries above):** hapTextObj magic is **0xF0168873**
+(code check in `textWidgetGetRect` 0x40CE90; stored by `windowCtor`) — the
+`0x1688173`/`0x01688173` values recorded in R0-A.3 are wrong. The 0x120-B
+window record (pv) is an **extended hapTextObj** (hwnd@+0xC, fontIdx@+0x70,
+rect@+0x78, dirty@+0x88). See doc 18.
+
+| Address | Old | New | Kind | Evidence | Confidence |
+|---|---|---|---|---|---|
+| 0x40A830 | FUN_0040a830 | `windowChildAttach` | function | classWind+0x88; sets windowObj+0x08 = root child; state via textWidgetStateGet(pv) | CONFIRMED |
+| 0x413760 | FUN_00413760 | `kntrChildAttach` | function | classKntr+0x88; appends child to array @kntr+0x38 (count @+0x3C) via 0x440790 | CONFIRMED |
+| 0x412980 | FUN_00412980 | `kntrPaint` | function | classKntr+0x1C paint slot; child array walk, recurse [childClass+0x1C]; bitmap origin save/translate/restore (0x425A10/0x425A50/0x425990) | CONFIRMED |
+| 0x435350 | FUN_00435350 | `butnPaint` | function | classButn+0x1C; bmpStateIconDraw(surface, btn+0x1C, &state@+0x36) | CONFIRMED |
+| 0x41F820 | FUN_0041f820 | `listWidgetPaint` | function | shared +0x1C for LSTS/CLST/IMGS → 0x448200(listView@+0x38, surface, rect) | CONFIRMED |
+| 0x409BF0 | FUN_00409bf0 | `widgetEventNoop` | function | shared class +0x18 default; empty | CONFIRMED |
+| 0x409C70 | FUN_00409c70 | `widgetStateFlagSet` | function | shared class +0x20 default; event+0x18 1/2/3 → mode\|=0x40/0x80/0x100 | CONFIRMED |
+| 0x40AF80 / 0x40AFC0 / 0x40B000 | FUN_0040af80 / 0x40afc0 / 0x40b000 | `winSlot6Set` / `winSlot8Set` / `winSlot12Set` | function | magic-check + [pv+0x28/0x30/0x40] = fn | CONFIRMED |
+| 0x401300 | FUN_00401300 | `docWindowTeardown` | function | doku slot 12: unlink gOpenDocListHead, fileDialogClose ×2, fileClose | CONFIRMED |
+| 0x401350 | FUN_00401350 | `docMenuBuild` | function | doku slot 6: menu bar New/Open/Import Colors/Save/Save As/Preview/About/Exit | CONFIRMED |
+| 0x401440 | FUN_00401440 | `docResizeInit` | function | doku slot 8: 0x409A00(win, 400, 800, 0x800000, 0) | CONFIRMED |
+| 0x40A170 | FUN_0040a170 | `winSlot1Event567` | function | pv slot 1: events 5/6/7 → [rootChildClass +0x38/+0x3C/+0x40] | CONFIRMED |
+| 0x40A2E0 | FUN_0040a2e0 | `winSlot2Event914` | function | pv slot 2: events 9-14 → [rootChildClass +0x20..+0x34]; 11=press→+0x28, 12=release→+0x30 | CONFIRMED |
+| 0x40A380 | FUN_0040a380 | `winSlot3Event1014` | function | pv slot 3: events 0x10-0x14 → [rootChildClass +0x48..+0x54] | CONFIRMED |
+| 0x40A450 | FUN_0040a450 | `winSlot4PopupShow` | function | pv slot 4: 0x409E50(windowObj, windowObj+0x18) | CONFIRMED |
+| 0x40A4A0 | FUN_0040a4a0 | `winSlot5ContextMenu` | function | pv slot 5: menuObjectCtor(0x409F40, windowObj, 0) + drop plumbing | CONFIRMED |
+| 0x40A5C0 | FUN_0040a5c0 | `winSlot10StateSync` | function | pv slot 10: 0x40C810(pv) → widgetStateSet(rootChild, 7, …) | CONFIRMED |
+| 0x40A690 | FUN_0040a690 | `winSlot9StateSync` | function | pv slot 9: thunk → winSlot10StateSync | CONFIRMED |
+| 0x40A6A0 | FUN_0040a6a0 | `windowObjDtor` | function | pv slot 13: release rootChild (0x409060), free +0x10 (0x40FCC0), memFree | CONFIRMED |
+| 0x40BD30 | FUN_0040bd30 | `winKeyDispatch` | function | WndProc key → slot 1: *(pv+0x14)(pv+0x48, ev) | CONFIRMED |
+| 0x40DD80 | FUN_0040dd80 | `winMouseDown` | function | region classify (0x42DE50): 1 client/2 title/3 border/5,8 edges/6 slot-5 callback | CONFIRMED |
+| 0x40E090 | FUN_0040e090 | `winMouseUp` | function | drag cancel (modes 3/5/8/9); release via 0x40BCE0 (slot 2, code 12) | CONFIRMED |
+| 0x40D7B0 | FUN_0040d7b0 | `winPointerPressRoute` | function | gPressedWinRecord 0x466288; release-old (12) + press-new (11) via 0x40BCE0 | CONFIRMED |
+| 0x40BCE0 | FUN_0040bce0 | `winPointerEventDispatch` | function | pointer events → slot 2: *(pv+0x18)(pv+0x48, ev) | CONFIRMED |
+| 0x466288 | DAT_00466288 | `gPressedWinRecord` | data | written by winPointerPressRoute/windowCtor path | CONFIRMED |
+| 0x46628C | DAT_0046628c | `gCapturedWinRecord` | data | set on client press, released by winMouseUp | CONFIRMED |
+| 0x466290 | DAT_00466290 | `gDragWinRecord` | data | drag owner | CONFIRMED |
+| 0x46629C / 0x4662A0 | _DAT_0046629c / _DAT_004662a0 | `gDragStartX` / `gDragStartY` | data | drag start coords | CONFIRMED |
+| 0x4662A4 | DAT_004662a4 | `gDragMode` | data | 2 title / 3 border / 5,8,9 edges | CONFIRMED |
+| 0x4662A5 | DAT_004662a5 | `gSlot5CallbackActive` | data | re-entrancy guard for *(pv+0x24) callback | CONFIRMED |
+
+Plus: 28 function comments, 15 prototypes (all read-back verified; details in
+doc 18 §8). Class-slot table (all 21 classes, +0x0C/+0x10/+0x14/+0x18/+0x1C/
++0x20) documented in doc 18 §2 — incl. TXTS @0x466C80 (no +0x1C paint slot).
+
 ### S2 C3 — %VUU window trees (2026-11-20)
 
 | Address | Old | New | Kind | Evidence | Confidence |
 |---|---|---|---|---|---|
-| 0x40BFA0 | FUN_0040bfa0 | `windowCtor` | function | called by widgetAllocInit (0x408670) for every window with (geom, options word, arg4, name, obj); result → obj+0x0C | CONFIRMED (role) |
+| 0x40BFA0 | FUN_0040bfa0 | `windowCtor` | function | called by widgetAllocInit (0x408670) for every window with **(windowObj, geom16, options, arg4, namePstr)** (order corrected S2 B2); result (pv record) → obj+0x0C | CONFIRMED (role) |
 | 0x40AE70 | FUN_0040ae70 | `windowDefaultPaintInstall` | function | called by widgetAllocInit with (obj+0x0C, 0x46624C) right before magic/class stored; S1 deferred "default-paint" | PROBABLE (name) |
 | 0x412780 | FUN_00412780 | `kntrWidgetInit` | function | KNTR classObj+0x0C; decodes: mode\|=0x20, payload 12B → widget+0x5C/+0x60/+0x64 | CONFIRMED |
 | 0x412860 | FUN_00412860 | `kntrHasChildren` | function | KNTR classObj+0x14 (childCountFn gate); body = `return widget` | CONFIRMED |

@@ -158,8 +158,16 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 
 ## 5.1 New S1 open items
 
-1. WM_PAINT → per-child paint call site (paint methods have no code
-   callers; template tables identified but the walker not yet traced).
+1. **RESOLVED (S2 B2, doc 18)** — WM_PAINT → per-child paint call site:
+   WndProc 0x40EB50 → chrome `FUN_0040E570` → slot 0 (pv+0x10, default
+   `labelPaint` 0x409FC0) with (windowObj) → `textWidgetGetRect(pv)` fetches
+   the dirty rect (pv is an extended hapTextObj) → **`[rootChildClass +0x1C]`**
+   (rootChild = windowObj+0x08, set by `windowChildAttach` 0x40A830) = the
+   per-child paint entry; `kntrPaint` 0x412980 recurses over the child array
+   @kntr+0x38 (count @+0x3C), dispatching `[childClass +0x1C]` per visible
+   child (mode@+0x34 & 0x08). Events: keys → slot 1 (0x40A170) →
+   [childClass +0x38/+0x3C/+0x40]; press(11)/release(12) → slot 2 (0x40A2E0)
+   → [childClass +0x28/+0x30].
 2. D role → widget-element mapping (which of the 54 roles paints which
    element, per painter).
 3. Runtime layout of embedded blob B (0x4683D4) beyond +0x52/+0x60/+0x64;
