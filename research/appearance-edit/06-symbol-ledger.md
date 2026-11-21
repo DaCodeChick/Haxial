@@ -472,3 +472,17 @@ bytes); prvw builds 2×CLST ("Column 1/2" @0x45F174/0x45F180; "Name"/"Info"
 (other LSTS users). Model source codes observed: 4, 0x102, 0x103, 0x200, 0x204,
 0x205, 0x214, 0x215 (meaning open). Column def record: {ptr header pstr} +
 {u16 6, w, w, h?, cap?, x?} stride 0x18 (header and def interleaved).
+
+### S2 C3 — %VUU window trees (2026-11-20)
+
+| Address | Old | New | Kind | Evidence | Confidence |
+|---|---|---|---|---|---|
+| 0x40BFA0 | FUN_0040bfa0 | `windowCtor` | function | called by widgetAllocInit (0x408670) for every window with (geom, options word, arg4, name, obj); result → obj+0x0C | CONFIRMED (role) |
+| 0x40AE70 | FUN_0040ae70 | `windowDefaultPaintInstall` | function | called by widgetAllocInit with (obj+0x0C, 0x46624C) right before magic/class stored; S1 deferred "default-paint" | PROBABLE (name) |
+| 0x412780 | FUN_00412780 | `kntrWidgetInit` | function | KNTR classObj+0x0C; decodes: mode\|=0x20, payload 12B → widget+0x5C/+0x60/+0x64 | CONFIRMED |
+| 0x412860 | FUN_00412860 | `kntrHasChildren` | function | KNTR classObj+0x14 (childCountFn gate); body = `return widget` | CONFIRMED |
+| 0x436430 | FUN_00436430 | `bpmnWidgetInit` | function | BPMN classObj+0x0C; decodes 12B payload → menuCreateFromBuiltIn or menuObjectCtor; menu → widget+0x38 | CONFIRMED |
+| 0x40FB90 | FUN_0040fb90 | `menuObjectCtor` | function | allocates 0xA4B menu object; +0x18 = handler fn (0x436160), +0x1C = widget, +0x50 = ref, +0x5C/+0x6C = −1 | CONFIRMED |
+
+All read-back verified (get_function_info). 0x436160/0x4361D0 are function
+addresses (prologues verified), passed as handler/callback args — NOT data.

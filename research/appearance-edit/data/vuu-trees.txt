@@ -1,0 +1,448 @@
+# Built-in %VUU window trees — reconstructed by tools/research/vuu_walk.py (2026-11-20)
+# Record model: doc 17 §3 (40 B fixed + round4(payload) + children; code-verified).
+# All six payloads walk EXACT against their %REZ sizes; named instances match
+# instance tables 1:1 (0 unmatched, 0 unused).
+
+================================================== doku ==================================================
+0x0008 VWIN  (   0,   0  380x400 ) inst=-     sz=  44 mode=0x00 kids= 1
+   | window-own 44B: 0x1000010f 0x0 0x0 0x17c012c 0x4e20 0x4e20 0x200 0x00 tail=b''
+  0x005c KNTR  (   0,   0  380x400 ) inst=-     sz=  12 mode=0x18 kids= 8
+    0x0090 BPMN  (   5,   4  175x24  ) inst=menu  sz=  12 mode=0x1a kids= 0
+    0x00c4 SEPR  (   2,  28  379x32  ) inst=-     sz=   0 mode=0x1a kids= 0 b23=0x4
+    0x00ec KNTR  (   0,  30  380x400 ) inst=info  sz=  12 mode=0x1a kids=14
+      0x0120 KLBL  (  10,  15  100x31  ) inst=-     sz=  17 mode=0x1a kids= 0
+      0x015c TXTS  ( 110,  10  370x36  ) inst=naam  sz=   0 mode=0x1a kids= 0 b22=0x1
+      0x0184 KLBL  (  10,  45  100x61  ) inst=-     sz=  20 mode=0x1a kids= 0
+      0x01c0 TXTS  ( 110,  40  260x66  ) inst=vers  sz=   0 mode=0x1a kids= 0 b22=0x1
+      0x01e8 KLBL  (  10,  75  100x91  ) inst=-     sz=  20 mode=0x1a kids= 0
+      0x0224 TXTS  ( 110,  70  370x96  ) inst=krtr  sz=   0 mode=0x1a kids= 0 b22=0x1
+      0x024c KLBL  (  10, 105  110x121 ) inst=-     sz=  24 mode=0x1a kids= 0
+      0x028c TXTS  ( 110, 100  370x206 ) inst=desk  sz=  30 mode=0x1a kids= 0 b22=0x1
+      0x02d4 KLBL  (  10, 220  100x236 ) inst=-     sz=  20 mode=0x1a kids= 0
+      0x0310 LABL  ( 110, 220  370x236 ) inst=krea  sz=   0 mode=0x1a kids= 0
+      0x0338 KLBL  (  10, 240  100x256 ) inst=-     sz=  21 mode=0x1a kids= 0
+      0x0378 LABL  ( 110, 240  370x256 ) inst=modi  sz=   0 mode=0x1a kids= 0
+      0x03a0 KLBL  (  10, 292  100x308 ) inst=-     sz=  18 mode=0x1a kids= 0
+      0x03dc BPMN  ( 110, 290  230x310 ) inst=scal  sz=  12 mode=0x1a kids= 0
+    0x0410 KNTR  (   0,  30  380x400 ) inst=klrs  sz=  12 mode=0x12 kids= 1 b23=0xc
+      0x0444 HOLD  (  10,  10  370x360 ) inst=klrl  sz=   0 mode=0x1a kids= 0
+    0x046c KNTR  (   0,  30  380x400 ) inst=imjs  sz=  12 mode=0x12 kids= 1 b23=0xc
+      0x04a0 HOLD  (  10,  10  370x360 ) inst=imjl  sz=   0 mode=0x1a kids= 0
+    0x04c8 KNTR  (   0,  30  380x400 ) inst=ikns  sz=  12 mode=0x12 kids= 1 b23=0xc
+      0x04fc HOLD  (  10,  10  370x360 ) inst=iknl  sz=   0 mode=0x1a kids= 0
+    0x0524 KNTR  (   0,  30  380x400 ) inst=pfik  sz=  12 mode=0x12 kids= 2 b23=0xc
+      0x0558 HOLD  (  10,  40  370x360 ) inst=lfik  sz=   0 mode=0x1a kids= 0
+      0x0580 BUTN  (  10,  10  150x30  ) inst=-     sz=  28 mode=0x1a kids= 0 flags=0x2bd
+    0x05c4 KNTR  (   0,  30  380x400 ) inst=pmik  sz=  12 mode=0x12 kids= 1 b23=0xc
+      0x05f8 HOLD  (  10,  10  370x360 ) inst=lmik  sz=   0 mode=0x1a kids= 0
+
+consumed 0x620 / 0x620 (EXACT), records=30
+class histogram: KNTR=7  KLBL=7  HOLD=5  TXTS=4  BPMN=2  LABL=2  VWIN=1  SEPR=1  BUTN=1
+named instances (19):
+  0x0090 BPMN  menu mode=0x1a
+  0x00ec KNTR  info mode=0x1a
+  0x015c TXTS  naam mode=0x1a
+  0x01c0 TXTS  vers mode=0x1a
+  0x0224 TXTS  krtr mode=0x1a
+  0x028c TXTS  desk mode=0x1a
+  0x0310 LABL  krea mode=0x1a
+  0x0378 LABL  modi mode=0x1a
+  0x03dc BPMN  scal mode=0x1a
+  0x0410 KNTR  klrs mode=0x12
+  0x0444 HOLD  klrl mode=0x1a
+  0x046c KNTR  imjs mode=0x12
+  0x04a0 HOLD  imjl mode=0x1a
+  0x04c8 KNTR  ikns mode=0x12
+  0x04fc HOLD  iknl mode=0x1a
+  0x0524 KNTR  pfik mode=0x12
+  0x0558 HOLD  lfik mode=0x1a
+  0x05c4 KNTR  pmik mode=0x12
+  0x05f8 HOLD  lmik mode=0x1a
+instance table @ 0x45f048 (19 entries, 8B each):
+  [ 0] menu  -> 0x000040
+  [ 1] info  -> 0x000044
+  [ 2] klrs  -> 0x000048
+  [ 3] imjs  -> 0x00004c
+  [ 4] ikns  -> 0x000050
+  [ 5] pfik  -> 0x000054
+  [ 6] pmik  -> 0x000058
+  [ 7] naam  -> 0x000060
+  [ 8] vers  -> 0x000064
+  [ 9] krtr  -> 0x000068
+  [10] desk  -> 0x00006c
+  [11] krea  -> 0x000070
+  [12] modi  -> 0x000074
+  [13] scal  -> 0x000078
+  [14] klrl  -> 0x00007c
+  [15] imjl  -> 0x000080
+  [16] iknl  -> 0x000084
+  [17] lfik  -> 0x000088
+  [18] lmik  -> 0x00008c
+desc-inst not in table: none
+table names unused by tree: none
+
+================================================== efik ==================================================
+0x0008 VWIN  (   0,   0  430x246 ) inst=-     sz=  60 mode=0x00 kids= 1
+  0x006c KNTR  (   0,   0  430x246 ) inst=-     sz=  12 mode=0x18 kids=15
+    0x00a0 KLBL  (  10,  10  120x26  ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x00e0 LABL  ( 120,  10  570x26  ) inst=fnam  sz=   0 mode=0x1a kids= 0 b23=0x4
+    0x0108 KLBL  (  10,  45  100x61  ) inst=-     sz=  22 mode=0x1a kids= 0
+    0x0148 TXTS  ( 120,  40  395x66  ) inst=type  sz=  34 mode=0x1a kids= 0 b22=0x1 b23=0x4
+    0x0194 BPMN  ( 400,  43  420x63  ) inst=typm  sz=  12 mode=0x1a kids= 0 flags=0x2c0 b23=0x5
+    0x01c8 KLBL  (  10,  75  120x91  ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x0208 IMGS  ( 120,  70  180x130 ) inst=imgS  sz=  40 mode=0x1a kids= 0
+    0x0258 KLBL  ( 200,  75  310x91  ) inst=-     sz=  24 mode=0x1a kids= 0
+    0x0298 IMGS  ( 310,  70  420x180 ) inst=imgM  sz=  40 mode=0x1a kids= 0
+    0x02e8 BUTN  ( 300, 210  386x236 ) inst=-     sz=  14 mode=0x1a kids= 0 flags=0x2be b23=0xf
+    0x0320 BUTN  ( 200, 213  280x233 ) inst=-     sz=  18 mode=0x1a kids= 0 flags=0x2bf b23=0xf
+    0x035c BUTN  (  10, 213   90x233 ) inst=dele  sz=  18 mode=0x1a kids= 0 flags=0x2c1
+    0x0398 KLBL  (  10, 190  420x206 ) inst=-     sz=  54 mode=0x1a kids= 0
+    0x03f8 LABL  (  10,  90  110x106 ) inst=sizS  sz=   0 mode=0x1a kids= 0
+    0x0420 LABL  ( 200,  90  300x106 ) inst=sizM  sz=   0 mode=0x1a kids= 0
+
+consumed 0x448 / 0x448 (EXACT), records=17
+class histogram: KLBL=5  LABL=3  BUTN=3  IMGS=2  VWIN=1  KNTR=1  TXTS=1  BPMN=1
+named instances (8):
+  0x00e0 LABL  fnam mode=0x1a
+  0x0148 TXTS  type mode=0x1a
+  0x0194 BPMN  typm mode=0x1a
+  0x0208 IMGS  imgS mode=0x1a
+  0x0298 IMGS  imgM mode=0x1a
+  0x035c BUTN  dele mode=0x1a
+  0x03f8 LABL  sizS mode=0x1a
+  0x0420 LABL  sizM mode=0x1a
+instance table @ 0x46440c (8 entries, 8B each):
+  [ 0] fnam  -> 0x000028
+  [ 1] type  -> 0x00002c
+  [ 2] typm  -> 0x000030
+  [ 3] imgS  -> 0x000034
+  [ 4] imgM  -> 0x000038
+  [ 5] sizS  -> 0x00003c
+  [ 6] sizM  -> 0x000040
+  [ 7] dele  -> 0x000044
+desc-inst not in table: none
+table names unused by tree: none
+
+================================================== emik ==================================================
+0x0008 VWIN  (   0,   0  340x380 ) inst=-     sz=  44 mode=0x00 kids= 1
+   | window-own 44B: 0x10000001 0x322 0x0 0x0 0x00 0x00 0x200 0x00 tail=b''
+  0x005c KNTR  (   0,   0  340x380 ) inst=-     sz=  12 mode=0x18 kids=17
+    0x0090 KLBL  (  10,  10  120x26  ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x00d0 LABL  ( 120,  10  440x26  ) inst=anam  sz=   0 mode=0x1a kids= 0
+    0x00f8 KLBL  (  10,  30  120x46  ) inst=-     sz=  22 mode=0x1a kids= 0
+    0x0138 LABL  ( 120,  30  440x46  ) inst=inam  sz=   0 mode=0x1a kids= 0
+    0x0160 IMGS  (  90,  50  250x210 ) inst=ikon  sz=  40 mode=0x1a kids= 0
+    0x01b0 KLBL  (  10, 222  170x238 ) inst=-     sz=  30 mode=0x1a kids= 0
+    0x01f8 BPMN  ( 170, 220  330x240 ) inst=trnk  sz=  12 mode=0x1a kids= 0
+    0x022c KLBL  (  10, 252  140x268 ) inst=-     sz=  25 mode=0x1a kids= 0
+    0x0270 BPMN  ( 170, 250  330x270 ) inst=invk  sz=  12 mode=0x1a kids= 0
+    0x02a4 KLBL  (  10, 285  100x301 ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x02e4 TXTS  ( 170, 280  220x306 ) inst=hotx  sz=  40 mode=0x1a kids= 0 b22=0x1
+    0x0334 KLBL  (  10, 315  100x331 ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x0374 TXTS  ( 170, 310  220x336 ) inst=hoty  sz=  40 mode=0x1a kids= 0 b22=0x1
+    0x03c4 BUTN  ( 230, 344  316x370 ) inst=-     sz=  14 mode=0x1a kids= 0 flags=0x321
+    0x03fc BUTN  ( 130, 347  210x367 ) inst=-     sz=  18 mode=0x1a kids= 0 flags=0x322
+    0x0438 BUTN  (  10, 347   90x367 ) inst=prvu  sz=  19 mode=0x1a kids= 0 flags=0x323
+    0x0474 BUTN  (  10, 347   90x367 ) inst=rest  sz=  17 mode=0x12 kids= 0 flags=0x324
+
+consumed 0x4b0 / 0x4b0 (EXACT), records=19
+class histogram: KLBL=6  BUTN=4  LABL=2  BPMN=2  TXTS=2  VWIN=1  KNTR=1  IMGS=1
+named instances (9):
+  0x00d0 LABL  anam mode=0x1a
+  0x0138 LABL  inam mode=0x1a
+  0x0160 IMGS  ikon mode=0x1a
+  0x01f8 BPMN  trnk mode=0x1a
+  0x0270 BPMN  invk mode=0x1a
+  0x02e4 TXTS  hotx mode=0x1a
+  0x0374 TXTS  hoty mode=0x1a
+  0x0438 BUTN  prvu mode=0x1a
+  0x0474 BUTN  rest mode=0x12
+instance table @ 0x465fb4 (9 entries, 8B each):
+  [ 0] anam  -> 0x000028
+  [ 1] inam  -> 0x00002c
+  [ 2] ikon  -> 0x000030
+  [ 3] trnk  -> 0x000034
+  [ 4] invk  -> 0x000038
+  [ 5] hotx  -> 0x00003c
+  [ 6] hoty  -> 0x000040
+  [ 7] prvu  -> 0x000044
+  [ 8] rest  -> 0x000048
+desc-inst not in table: none
+table names unused by tree: none
+
+================================================== epxm ==================================================
+0x0008 VWIN  (   0,   0  690x342 ) inst=-     sz=  44 mode=0x00 kids= 1
+   | window-own 44B: 0x10000009 0x97 0x0 0x2b20156 0x2710 0x2710 0x200 0x00 tail=b''
+  0x005c KNTR  (   0,   0  690x342 ) inst=-     sz=  12 mode=0x18 kids=40
+    0x0090 KLBL  (  10,  15  140x31  ) inst=-     sz=  27 mode=0x1a kids= 0
+    0x00d4 TXTS  ( 150,  10  200x36  ) inst=lcpw  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x00fc KLBL  ( 210,  15  340x31  ) inst=-     sz=  28 mode=0x1a kids= 0
+    0x0140 TXTS  ( 370,  10  420x36  ) inst=rcpw  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0168 KLBL  (  10,  45  140x61  ) inst=-     sz=  27 mode=0x1a kids= 0
+    0x01ac TXTS  ( 150,  40  200x66  ) inst=tcph  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x01d4 KLBL  ( 210,  45  370x61  ) inst=-     sz=  30 mode=0x1a kids= 0
+    0x021c TXTS  ( 370,  40  420x66  ) inst=bcph  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0244 SEPR  (   5,  70  425x76  ) inst=-     sz=   0 mode=0x1a kids= 0
+    0x026c KLBL  (  10,  85  140x101 ) inst=-     sz=  26 mode=0x1a kids= 0
+    0x02b0 TXTS  ( 150,  80  200x106 ) inst=lpos  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x02d8 KLBL  ( 210,  85  340x101 ) inst=-     sz=  27 mode=0x1a kids= 0
+    0x031c TXTS  ( 370,  80  420x106 ) inst=rpos  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0344 KLBL  (  10, 115  140x131 ) inst=-     sz=  25 mode=0x1a kids= 0
+    0x0388 TXTS  ( 150, 110  200x136 ) inst=tpos  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x03b0 KLBL  ( 210, 115  370x131 ) inst=-     sz=  28 mode=0x1a kids= 0
+    0x03f4 TXTS  ( 370, 110  420x136 ) inst=bpos  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x041c SEPR  (   5, 140  425x146 ) inst=-     sz=   0 mode=0x1a kids= 0
+    0x0444 KLBL  (  10, 152  170x168 ) inst=-     sz=  30 mode=0x1a kids= 0
+    0x048c BPMN  ( 180, 150  420x170 ) inst=trns  sz=  12 mode=0x1a kids= 0
+    0x04c0 KLBL  (  10, 180  110x196 ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x0500 KOLR  ( 130, 178  170x198 ) inst=txtk  sz=   0 mode=0x1a kids= 0
+    0x0528 BPMN  ( 220, 220  390x240 ) inst=tsty  sz=  12 mode=0x1a kids= 0
+    0x055c KLBL  (  10, 252  120x268 ) inst=-     sz=  24 mode=0x1a kids= 0
+    0x059c KOLR  ( 120, 250  160x270 ) inst=tssc  sz=   0 mode=0x1a kids= 0
+    0x05c4 KLBL  ( 190, 252  290x268 ) inst=-     sz=  22 mode=0x1a kids= 0
+    0x0604 KOLR  ( 290, 250  330x270 ) inst=tsec  sz=   0 mode=0x1a kids= 0
+    0x062c SEPR  (   5, 206  425x212 ) inst=-     sz=   0 mode=0x1a kids= 0
+    0x0654 KLBL  (  10, 222  210x238 ) inst=-     sz=  36 mode=0x1a kids= 0
+    0x06a0 KLBL  (  10, 285  130x301 ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x06e0 TXTS  ( 130, 280  180x306 ) inst=tsil  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0708 KLBL  ( 240, 285  370x301 ) inst=-     sz=  24 mode=0x1a kids= 0
+    0x0748 TXTS  ( 370, 280  420x306 ) inst=tsir  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0770 KLBL  (  10, 315  130x331 ) inst=-     sz=  22 mode=0x1a kids= 0
+    0x07b0 TXTS  ( 130, 310  180x336 ) inst=tsit  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x07d8 KLBL  ( 240, 315  370x331 ) inst=-     sz=  25 mode=0x1a kids= 0
+    0x081c TXTS  ( 370, 310  420x336 ) inst=tsib  sz=   0 mode=0x1a kids= 0 b22=0x1
+    0x0844 IMGS  ( 430,  10  680x300 ) inst=imaj  sz=  40 mode=0x1a kids= 0 b23=0xc
+    0x0894 BUTN  ( 560, 308  646x334 ) inst=-     sz=  16 mode=0x1a kids= 0 flags=0x96 b23=0xf
+    0x08cc BUTN  ( 460, 311  540x331 ) inst=-     sz=  18 mode=0x1a kids= 0 flags=0x97 b23=0xf
+
+consumed 0x908 / 0x908 (EXACT), records=42
+class histogram: KLBL=17  TXTS=12  SEPR=3  KOLR=3  BPMN=2  BUTN=2  VWIN=1  KNTR=1  IMGS=1
+named instances (18):
+  0x00d4 TXTS  lcpw mode=0x1a
+  0x0140 TXTS  rcpw mode=0x1a
+  0x01ac TXTS  tcph mode=0x1a
+  0x021c TXTS  bcph mode=0x1a
+  0x02b0 TXTS  lpos mode=0x1a
+  0x031c TXTS  rpos mode=0x1a
+  0x0388 TXTS  tpos mode=0x1a
+  0x03f4 TXTS  bpos mode=0x1a
+  0x048c BPMN  trns mode=0x1a
+  0x0500 KOLR  txtk mode=0x1a
+  0x0528 BPMN  tsty mode=0x1a
+  0x059c KOLR  tssc mode=0x1a
+  0x0604 KOLR  tsec mode=0x1a
+  0x06e0 TXTS  tsil mode=0x1a
+  0x0748 TXTS  tsir mode=0x1a
+  0x07b0 TXTS  tsit mode=0x1a
+  0x081c TXTS  tsib mode=0x1a
+  0x0844 IMGS  imaj mode=0x1a
+instance table @ 0x465a9c (18 entries, 8B each):
+  [ 0] lcpw  -> 0x000028
+  [ 1] tcph  -> 0x00002c
+  [ 2] rcpw  -> 0x000030
+  [ 3] bcph  -> 0x000034
+  [ 4] lpos  -> 0x000038
+  [ 5] tpos  -> 0x00003c
+  [ 6] rpos  -> 0x000040
+  [ 7] bpos  -> 0x000044
+  [ 8] trns  -> 0x000048
+  [ 9] txtk  -> 0x00004c
+  [10] imaj  -> 0x000050
+  [11] tsty  -> 0x000054
+  [12] tssc  -> 0x000058
+  [13] tsec  -> 0x00005c
+  [14] tsil  -> 0x000060
+  [15] tsit  -> 0x000064
+  [16] tsir  -> 0x000068
+  [17] tsib  -> 0x00006c
+desc-inst not in table: none
+table names unused by tree: none
+
+================================================== esik ==================================================
+0x0008 VWIN  (   0,   0  430x246 ) inst=-     sz=  56 mode=0x00 kids= 1
+  0x0068 KNTR  (   0,   0  430x246 ) inst=-     sz=  12 mode=0x18 kids=13
+    0x009c KLBL  (  10,  10  120x26  ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x00dc LABL  ( 120,  10  570x26  ) inst=fnam  sz=   0 mode=0x1a kids= 0 b23=0x4
+    0x0104 KLBL  (  10,  30  120x46  ) inst=-     sz=  22 mode=0x1a kids= 0
+    0x0144 LABL  ( 120,  30  430x46  ) inst=inam  sz=   0 mode=0x1a kids= 0
+    0x016c KLBL  (  10,  75  120x91  ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x01ac IMGS  ( 120,  70  180x130 ) inst=imgS  sz=  40 mode=0x1a kids= 0
+    0x01fc KLBL  ( 200,  75  310x91  ) inst=-     sz=  24 mode=0x1a kids= 0
+    0x023c IMGS  ( 310,  70  420x180 ) inst=imgM  sz=  40 mode=0x1a kids= 0
+    0x028c BUTN  ( 300, 210  386x236 ) inst=-     sz=  14 mode=0x1a kids= 0 flags=0x259 b23=0xf
+    0x02c4 BUTN  ( 200, 213  280x233 ) inst=-     sz=  18 mode=0x1a kids= 0 flags=0x25a b23=0xf
+    0x0300 KLBL  (  10, 190  420x206 ) inst=-     sz=  54 mode=0x1a kids= 0
+    0x0360 LABL  (  10,  90  110x106 ) inst=sizS  sz=   0 mode=0x1a kids= 0
+    0x0388 LABL  ( 200,  90  300x106 ) inst=sizM  sz=   0 mode=0x1a kids= 0
+
+consumed 0x3b0 / 0x3b0 (EXACT), records=15
+class histogram: KLBL=5  LABL=4  IMGS=2  BUTN=2  VWIN=1  KNTR=1
+named instances (6):
+  0x00dc LABL  fnam mode=0x1a
+  0x0144 LABL  inam mode=0x1a
+  0x01ac IMGS  imgS mode=0x1a
+  0x023c IMGS  imgM mode=0x1a
+  0x0360 LABL  sizS mode=0x1a
+  0x0388 LABL  sizM mode=0x1a
+instance table @ 0x4640c4 (6 entries, 8B each):
+  [ 0] fnam  -> 0x000028
+  [ 1] inam  -> 0x00002c
+  [ 2] imgS  -> 0x000030
+  [ 3] imgM  -> 0x000034
+  [ 4] sizS  -> 0x000038
+  [ 5] sizM  -> 0x00003c
+desc-inst not in table: none
+table names unused by tree: none
+
+================================================== prvw ==================================================
+0x0008 VWIN  (   0,   0  360x340 ) inst=-     sz=  64 mode=0x00 kids= 1
+  0x0070 KNTR  (   0,   0  360x340 ) inst=-     sz=  12 mode=0x18 kids=11
+    0x00a4 MBAR  (   0,   0  360x20  ) inst=mbar  sz=   0 mode=0x1a kids= 0 b23=0x4
+    0x00cc BPMN  (   5,  25  195x45  ) inst=pmnu  sz=  12 mode=0x1a kids= 0
+    0x0100 SEPR  (   5,  50  355x54  ) inst=-     sz=   0 mode=0x1a kids= 0
+    0x0128 KNTR  (   0,  60  360x340 ) inst=misc  sz=  12 mode=0x1a kids=15
+      0x015c KLBL  (  10,  14  140x30  ) inst=-     sz=  25 mode=0x1a kids= 0
+      0x01a0 TXTS  ( 140,  10  340x36  ) inst=-     sz=  38 mode=0x1e kids= 0 b22=0x1
+      0x01f0 HOLD  (  10,  50  210x170 ) inst=list  sz=   0 mode=0x1a kids= 0
+      0x0218 PRGS  (  10, 184  210x204 ) inst=pbar  sz=  20 mode=0x1a kids= 0
+      0x0254 SLDR  (  10, 211  210x243 ) inst=pbsl  sz=  12 mode=0x1a kids= 0
+      0x0288 SLDR  (  10, 245  210x277 ) inst=-     sz=  12 mode=0x0a kids= 0
+      0x02bc BUTN  ( 230,  50  320x70  ) inst=-     sz=  18 mode=0x1a kids= 0
+      0x02f8 BUTN  ( 230,  80  320x100 ) inst=-     sz=  20 mode=0x0a kids= 0
+      0x0334 SEPR  ( 230, 108  332x114 ) inst=-     sz=   0 mode=0x1a kids= 0
+      0x035c BUTN  ( 230, 120  326x146 ) inst=-     sz=  19 mode=0x1a kids= 0
+      0x0398 BPMN  ( 230, 154  330x174 ) inst=umen  sz=  12 mode=0x1a kids= 0
+      0x03cc TIKB  ( 230, 180  350x198 ) inst=-     sz=  27 mode=0x1a kids= 0
+      0x0410 TIKB  ( 230, 200  350x218 ) inst=-     sz=  28 mode=0x0a kids= 0
+      0x0454 IKBT  ( 230, 230  272x272 ) inst=-     sz=  32 mode=0x1a kids= 0
+      0x049c IKON  ( 300, 230  332x262 ) inst=-     sz=  16 mode=0x1a kids= 0
+    0x04d4 KNTR  (   0,  60  360x340 ) inst=tiks  sz=  12 mode=0x12 kids=14
+      0x0508 TIKB  (  10,  60  160x78  ) inst=-     sz=  27 mode=0x1a kids= 0
+      0x054c TIKB  (  10,  80  160x98  ) inst=-     sz=  22 mode=0x1a kids= 0
+      0x058c TIKB  (  10, 100  160x118 ) inst=trit  sz=  25 mode=0x1a kids= 0
+      0x05d0 TIKB  (  10, 150  160x168 ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0614 TIKB  (  10, 170  160x188 ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0658 TIKB  (  10, 190  160x208 ) inst=trim  sz=  31 mode=0x1a kids= 0
+      0x06a0 TIKB  ( 180,  60  330x78  ) inst=-     sz=  27 mode=0x0a kids= 0
+      0x06e4 TIKB  ( 180,  80  330x98  ) inst=-     sz=  22 mode=0x0a kids= 0
+      0x0724 TIKB  ( 180, 100  330x118 ) inst=-     sz=  25 mode=0x0a kids= 0
+      0x0768 TIKB  ( 180, 150  330x168 ) inst=-     sz=  28 mode=0x0a kids= 0
+      0x07ac TIKB  ( 180, 170  330x188 ) inst=-     sz=  28 mode=0x0a kids= 0
+      0x07f0 TIKB  ( 180, 190  330x208 ) inst=-     sz=  31 mode=0x0a kids= 0
+      0x0838 KLBL  (  10,  30  100x46  ) inst=-     sz=  19 mode=0x1a kids= 0
+      0x0874 KLBL  ( 180,  30  270x46  ) inst=-     sz=  21 mode=0x1a kids= 0
+    0x08b4 KNTR  (   0,  60  360x340 ) inst=boxs  sz=  12 mode=0x12 kids= 5
+      0x08e8 SEPR  (  10,  40   20x240 ) inst=-     sz=   0 mode=0x1a kids= 0
+      0x0910 424f5821 (  50,  20  300x70  ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x0944 424f5821 (  50, 100  300x160 ) inst=-     sz=  26 mode=0x1a kids= 0
+      0x0988 424f5821 (  50, 210  300x270 ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x09bc LABL  (  50, 190  220x206 ) inst=-     sz=  30 mode=0x1a kids= 0
+    0x0a04 KNTR  (   0,  60  360x340 ) inst=slid  sz=  12 mode=0x12 kids= 8
+      0x0a38 SLDR  (  10,  20   40x260 ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x0a6c SLDR  (  50,  20   80x260 ) inst=-     sz=  12 mode=0x0a kids= 0
+      0x0aa0 SLDR  (  90,  20  120x260 ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x0ad4 SLDR  ( 130,  20  160x260 ) inst=-     sz=  12 mode=0x0a kids= 0
+      0x0b08 SLDR  ( 180,  20  340x50  ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x0b3c SLDR  ( 180,  70  340x100 ) inst=-     sz=  12 mode=0x0a kids= 0
+      0x0b70 SLDR  ( 180, 120  340x150 ) inst=-     sz=  12 mode=0x1a kids= 0
+      0x0ba4 SLDR  ( 180, 170  340x200 ) inst=-     sz=  12 mode=0x0a kids= 0
+    0x0bd8 KNTR  (   0,  60  360x340 ) inst=hsbs  sz=  12 mode=0x12 kids= 8
+      0x0c0c HOLD  (  10,  30  350x46  ) inst=sbhd  sz=   0 mode=0x1a kids= 0
+      0x0c34 HOLD  (  10,  90  136x106 ) inst=sbhs  sz=   0 mode=0x1a kids= 0
+      0x0c5c HOLD  (  10, 150   38x166 ) inst=sbht  sz=   0 mode=0x1a kids= 0
+      0x0c84 HOLD  (  10, 210  350x226 ) inst=sbhi  sz=   0 mode=0x1a kids= 0
+      0x0cac KLBL  (  10,  10  150x26  ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0cf0 KLBL  (  10,  70  150x86  ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0d34 KLBL  (  10, 130  120x146 ) inst=-     sz=  24 mode=0x1a kids= 0
+      0x0d74 KLBL  (  10, 190  110x206 ) inst=-     sz=  23 mode=0x1a kids= 0
+    0x0db4 KNTR  (   0,  60  360x340 ) inst=vsbs  sz=  12 mode=0x12 kids= 8
+      0x0de8 KLBL  ( 170,  10  310x26  ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0e2c KLBL  ( 110, 110  250x126 ) inst=-     sz=  28 mode=0x1a kids= 0
+      0x0e70 KLBL  ( 100, 190  200x206 ) inst=-     sz=  24 mode=0x1a kids= 0
+      0x0eb0 KLBL  (  40, 250  130x266 ) inst=-     sz=  22 mode=0x1a kids= 0
+      0x0ef0 HOLD  ( 310,  10  326x270 ) inst=sbvd  sz=   0 mode=0x1a kids= 0
+      0x0f18 HOLD  ( 250, 110  266x236 ) inst=sbvs  sz=   0 mode=0x1a kids= 0
+      0x0f40 HOLD  ( 200, 190  216x218 ) inst=sbvt  sz=   0 mode=0x1a kids= 0
+      0x0f68 HOLD  (  20,  10   36x270 ) inst=sbvi  sz=   0 mode=0x1a kids= 0
+    0x0f90 KNTR  (   0,  60  360x340 ) inst=btns  sz=  12 mode=0x12 kids=14
+      0x0fc4 BUTN  (  30,  10  120x30  ) inst=-     sz=  18 mode=0x1a kids= 0
+      0x1000 BUTN  ( 130,  10  220x30  ) inst=-     sz=  20 mode=0x0a kids= 0
+      0x103c BUTN  (  30,  40  120x66  ) inst=-     sz=  19 mode=0x1a kids= 0
+      0x1078 BUTN  ( 130,  40  220x66  ) inst=-     sz=  19 mode=0x0a kids= 0
+      0x10b4 IKBT  (  30,  80  210x104 ) inst=-     sz=  43 mode=0x1a kids= 0
+      0x1108 IKBT  (  30, 110  210x134 ) inst=-     sz=  49 mode=0x0a kids= 0
+      0x1164 BPMN  (  30, 150  180x170 ) inst=6d6e7532 sz=  12 mode=0x1a kids= 0
+      0x1198 BPMN  (  30, 180  180x200 ) inst=6d6e7533 sz=   0 mode=0x0a kids= 0
+      0x11c0 TXTS  (  30, 210  180x236 ) inst=mnut  sz=   0 mode=0x1a kids= 0 b22=0x1
+      0x11e8 TXTS  (  30, 240  180x266 ) inst=-     sz=   0 mode=0x0a kids= 0 b22=0x1
+      0x1210 BPMN  ( 184, 213  204x233 ) inst=tmnu  sz=   0 mode=0x1a kids= 0
+      0x1238 BPMN  ( 184, 243  204x263 ) inst=-     sz=   0 mode=0x0a kids= 0
+      0x1260 KLBL  ( 230, 220  360x236 ) inst=-     sz=  26 mode=0x1a kids= 0
+      0x12a4 KOLR  ( 230, 240  270x260 ) inst=-     sz=   0 mode=0x1a kids= 0
+    0x12cc KNTR  (   0,  60  360x340 ) inst=lscc  sz=  12 mode=0x12 kids= 1
+      0x1300 HOLD  (  10,  10  350x270 ) inst=lscl  sz=   0 mode=0x1a kids= 0
+
+consumed 0x1328 / 0x1328 (EXACT), records=86
+class histogram: TIKB=14  KLBL=12  HOLD=10  SLDR=10  KNTR=9  BUTN=7  BPMN=6  SEPR=3  TXTS=3  IKBT=3  424f5821=3  VWIN=1  MBAR=1  PRGS=1  IKON=1  LABL=1  KOLR=1
+named instances (29):
+  0x00a4 MBAR  mbar mode=0x1a
+  0x00cc BPMN  pmnu mode=0x1a
+  0x0128 KNTR  misc mode=0x1a
+  0x01f0 HOLD  list mode=0x1a
+  0x0218 PRGS  pbar mode=0x1a
+  0x0254 SLDR  pbsl mode=0x1a
+  0x0398 BPMN  umen mode=0x1a
+  0x04d4 KNTR  tiks mode=0x12
+  0x058c TIKB  trit mode=0x1a
+  0x0658 TIKB  trim mode=0x1a
+  0x08b4 KNTR  boxs mode=0x12
+  0x0a04 KNTR  slid mode=0x12
+  0x0bd8 KNTR  hsbs mode=0x12
+  0x0c0c HOLD  sbhd mode=0x1a
+  0x0c34 HOLD  sbhs mode=0x1a
+  0x0c5c HOLD  sbht mode=0x1a
+  0x0c84 HOLD  sbhi mode=0x1a
+  0x0db4 KNTR  vsbs mode=0x12
+  0x0ef0 HOLD  sbvd mode=0x1a
+  0x0f18 HOLD  sbvs mode=0x1a
+  0x0f40 HOLD  sbvt mode=0x1a
+  0x0f68 HOLD  sbvi mode=0x1a
+  0x0f90 KNTR  btns mode=0x12
+  0x1164 BPMN  6d6e7532 mode=0x1a
+  0x1198 BPMN  6d6e7533 mode=0x0a
+  0x11c0 TXTS  mnut mode=0x1a
+  0x1210 BPMN  tmnu mode=0x1a
+  0x12cc KNTR  lscc mode=0x12
+  0x1300 HOLD  lscl mode=0x1a
+instance table @ 0x45f57c (29 entries, 8B each):
+  [ 0] pmnu  -> 0x000028
+  [ 1] misc  -> 0x00002c
+  [ 2] btns  -> 0x000030
+  [ 3] tiks  -> 0x000034
+  [ 4] boxs  -> 0x000038
+  [ 5] slid  -> 0x00003c
+  [ 6] hsbs  -> 0x000040
+  [ 7] vsbs  -> 0x000044
+  [ 8] lscc  -> 0x000048
+  [ 9] umen  -> 0x000050
+  [10] mnu2  -> 0x000054
+  [11] mnu3  -> 0x000058
+  [12] tmnu  -> 0x000074
+  [13] mnut  -> 0x000070
+  [14] list  -> 0x00005c
+  [15] lscl  -> 0x000060
+  [16] pbar  -> 0x000064
+  [17] pbsl  -> 0x000068
+  [18] mbar  -> 0x00006c
+  [19] sbhd  -> 0x000078
+  [20] sbhs  -> 0x00007c
+  [21] sbhi  -> 0x000080
+  [22] sbht  -> 0x000084
+  [23] sbvd  -> 0x000088
+  [24] sbvs  -> 0x00008c
+  [25] sbvi  -> 0x000090
+  [26] sbvt  -> 0x000094
+  [27] trit  -> 0x000098
+  [28] trim  -> 0x00009c
+desc-inst not in table: ['6d6e7532', '6d6e7533']
+table names unused by tree: ['mnu2', 'mnu3']

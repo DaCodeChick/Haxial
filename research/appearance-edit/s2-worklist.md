@@ -299,21 +299,55 @@ reconstruct the enclosing records, not just the FourCC pairs.
   - Class inventory: 21 classes reconciled across docs (7 fast-path, 11
     registered, WIND direct, LSTS/CLST direct; SLDR corrected from "RLDR").
 
+### Completed — C3: %VUU window trees (2026-11-20)
+
+- Built `tools/research/vuu_walk.py` (record walker: 40B fixed +
+  round4(payload) + childCount recursion; instance-table cross-check).
+- **ALL SIX windows walk EXACT** against %REZ sizes; named instances match
+  instance tables 1:1 (doku 30/19, efik 17/8, emik 19/9, epxm 42/18, esik
+  15/6, prvw 86/29; total 209 records, 89 instances). Full trees →
+  `data/vuu-trees.txt`. (esik size is 0x3B0, not 0x1B0 — earlier arithmetic
+  slip; also: 4B pad between scal MENU and doku VWIN payloads in the pool.)
+- **widgetInstantiate fully re-decoded** (arg3 = TOTAL subtree bytes, not
+  payload size; classInit = (widget, payload=desc+40, payloadSize, b22);
+  child loop gated by classObj+0x14 childCountFn — KNTR has one
+  (kntrHasChildren, `return widget`); A2/A3 "always NULL" corrected).
+- **KNTR payload 12B** = {u32BE A, u32BE B, u16BE C}: A=B=0 always; C=1 root
+  containers, C=3 tab pages (semantics UNKNOWN, values only) →
+  kntrWidgetInit (0x412780) → widget+0x5C/+0x60/+0x64; mode |= 0x20.
+- **BPMN payload 12B** = {u32BE menuRefA, u32BE menuRefB, u32}: A≠0 →
+  menuCreateFromBuiltIn (MENU 0x4D454E55 lookup → menuPayloadParse); else
+  menuObjectCtor (0x40FB90, 0xA4B menu obj); menu → widget+0x38;
+  0x436160/0x4361D0 = function pointers (handler fns), NOT data tables.
+- **Window-own block model** (VWIN payload 44–64B): +0 options word →
+  windowCtor; +4 u32 → FUN_0040CC30; +0C..+12 4×u16BE quad → (if any ≠0)
+  scaleQuad → FUN_0040C9A0; +14 u8 mode (0→FUN_0040CAC0, 2→none, else
+  FUN_0040CB10); +23.. title pstr (default name; caller can override). Block
+  tail is builder-specific (esik differs: title @+13, size pair @+28, 0x0C
+  @+3C). doku options 0x1000010F, emik 0x10000001, epxm 0x10000009, others 0.
+- **widgetAllocInit decoded**: obj = zeroed(max(size,0x28)); windowCtor
+  (0x40BFA0) ← (geom, options, arg4, name, obj); [obj+0x0C] = result;
+  windowDefaultPaintInstall (0x40AE70) ← (obj+0x0C, 0x46624C); obj+0 =
+  magic; **obj+0x04 = classWind (0x466188) ALWAYS** — the "classCode" is not
+  a class lookup; all windows are WIND-class. Resolves S1's FUN_0040BFA0 /
+  FUN_0040AE70 items (renamed windowCtor / windowDefaultPaintInstall).
+- **Instance table model confirmed**: 8B entries {instCode u32, slotOffset
+  u32}; registration loop stores WIDGET POINTER into windowObj[slotOffset]
+  (ESI reloaded before the store — corrected my mid-analysis doubt). Static
+  slot offsets are dense (0x28, 0x2C, ... per window).
+- **prvw = live-preview window** (360×340, 8 tabs: misc/tiks/boxs/slid/hsbs/
+  vsbs/btns/lscc — widgets rendered enabled+disabled pairs; matches the
+  preview screenshots). KOLR appears in btns tab (color chooser preview);
+  lscc hosts the runtime CLST list (A3).
+- Ghidra: 6 renames (windowCtor, windowDefaultPaintInstall, kntrWidgetInit,
+  kntrHasChildren, bpmnWidgetInit, menuObjectCtor) — all read-back verified.
+  Ledger C3 section written. Doc 17 §15 written; §14 updated.
+
 ### In progress
-- **A3/C3: prvw window tree** (next concrete task) — payload 0x4621A0, 0x1328 B,
-  29 instances; child records from 0x4621A8+ (VWIN desc + 44 B payload, then
-  children); known: MBAR (0x462244, inst mbar), KNTR (0x462210 "Items"?), TIKB
-  cluster 0x46256C-0x462908 (live-preview tick buttons: Tick Button/Ticked/
-  Untated...), IKBT 0x463254/0x4632A8 ("...Dis ..." icon buttons), IKON
-  0x46263C, BPMN 0x462538 ("Default"), HOLD 0x46239C ("list" inst? — HOLD desc
-  near pstr "list"), SLDR cluster 0x4623F4-0x462D44 (10 slider records), KOLR
-  absent here (KOLR in doku/epxm), PRGS 0x4623B8 (inst pbar), pbsl 0x462400,
-  sbht/sbhi/sbvd/sbvs/sbvt/sbvi scrollbar records 0x462E08-0x463114, SEPR
-  0x462A88. Full walk pending (validate via childCount/payload sizes, not
-  visual indentation).
-- **B2 (paint dispatch)** — pending: method-table slot roles partially known
-  (+0x0C init, +0x10 teardown, +0x18 hit-test, +0x5C stateNotify, +0x88 attach);
-  WM_PAINT walker still open (S1 open question 1).
+- **B2 (paint dispatch)** — the four window methods 0x40C9A0/0x40CAC0/
+  0x40CB10/0x40CC30 + windowCtor internals (3 bodies, 0x288 B) + 0x46624C
+  default-paint data + the WM_PAINT → per-child paint walker (S1 open item 1).
+  Then %MNU item decode (menuPayloadParse field semantics via the 3 menus).
 
 ### Pending
 - C1 (enrichment gate incl. list-widget ctor params), D (geometry: scrollbar/

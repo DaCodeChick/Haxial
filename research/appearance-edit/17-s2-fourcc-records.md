@@ -508,8 +508,149 @@ No C-string boundaries were altered.
 - **E/G:** §10 part tables → D-role indices. (LSTS/CLST consumer analysis
   RESOLVED in A3 — list widget classes, not D-section; see doc 18.)
 - **F:** built-in 8×8 font block at `0x4709xx–0x478xxx` (`wvgw` glyphs etc.).
-- **Remaining descriptors:** full doku tree (12+ more records), prvw tree
-  (29 instances), epxm tree (18), %MNU item decode for all 3 menus.
+- **Remaining descriptors:** RESOLVED in C3 (§15) — all six trees walked
+  exact; %MNU item decode for all 3 menus still open (B2/E).
 - **rezHeader +0x0C/+0x10:** purpose open (both zero; not read in this
   binary). `+0x08 totalSpanBE` value exact (0x3C98) but writer-side semantics
   unverified (no writer in this binary — registry is static).
+## 15. %VUU window trees — full reconstruction (C3 — COMPLETE)
+
+All six built-in %VUU payloads were walked by `tools/research/vuu_walk.py`
+against the on-disk EXE. **Every payload consumes its %REZ size EXACTLY and
+every named instance matches its window instance table 1:1** (0 unmatched,
+0 unused). Full tree: `data/vuu-trees.txt`.
+
+| window | payload | size | records | named instances | geometry | window-own sz |
+|---|---|---|---|---|---|---|
+| doku | 0x4605D0 | 0x620 | 30 | 19/19 | 380×400 | 44 |
+| efik | 0x460BF0 | 0x448 | 17 | 8/8 | 430×246 | 60 |
+| emik | 0x461038 | 0x4B0 | 19 | 9/9 | 340×380 | 44 |
+| epxm | 0x4614E8 | 0x908 | 42 | 18/18 | 690×342 | 44 |
+| esik | 0x461DF0 | 0x3B0 | 15 | 6/6 | 430×246 | 56 |
+| prvw | 0x4621A0 | 0x1328 | 86 | 29/29 | 360×340 | 64 |
+
+(The %REZ pool also has a 4-byte pad between the `scal` MENU payload and the
+`doku` VWIN payload: 0x4602A4..0x4602A8.)
+
+### 15.1 `widgetInstantiate` (0x408750) — corrected full decode
+
+Args: (parent, desc, **totalSubtreeBytes**, arg4, **windowObj**, instTable,
+instCount, sizeOut). `totalSubtreeBytes` (arg3) must be ≥ 0x28; end =
+desc + arg3; the payload (desc+0x14 bswapped) must fit:
+desc+0x28+round4(payload) ≤ end.
+
+Per record:
+1. classObj = widgetClassLookup(bswap(desc+0)); NULL → hError(0x10017,0x56,0xA6).
+2. widget = memAllocZeroed(max(classObj+0x08, 0x38)); `+0x00` = magic
+   0x5655d881; `+0x04` = **classObj** (NOT desc); `+0x08` = parent.
+3. Raw geometry u16BE desc+0x04..+0x0B → `+0x0C..+0x17` (i16);
+   scaleQuad → `+0x1C..+0x27`.
+4. `+0x2C` = bswap(desc+0x0C) **instance code**; `+0x30` = bswap(desc+0x10)
+   flags; `+0x34` = (mode & 0x18) | 1 (mode = u16BE desc+0x20, swapped);
+   `+0x37` = desc+0x23 (b23).
+5. If parent: parent magic check (0x5655d881), then
+   `parentClassObj = [parent+0x04]`; if `[parentClassObj+0x88]` →
+   attachFn(parent, child) else hError(0x10002,0x56,0xBF); `child+0x08` = parent.
+6. If `classObj+0x0C` (initFn) ≠ 0:
+   **classInit(widget, payload = desc+0x28, payloadSize, b22 = desc+0x22)**.
+7. If mode & 4: FUN_00409850(widget).
+8. Children: childBase = desc+0x28+round4(payloadSize). **Gate:**
+   `classObj+0x14` (childCountFn) is called with (widget); the loop runs only
+   if it returns non-zero. KNTR's gate = `kntrHasChildren` (0x412860,
+   2-instruction `return widget`). All other classes have NULL at +0x14 (so
+   the A2/A3 claim "+0x14 always NULL" is corrected: KNTR has one). The loop
+   then recurses widgetInstantiate `childCount` times (childCount = u16BE
+   desc+0x26, swapped).
+9. Instance registration: for each 8-byte table entry {instCode u32,
+   slotOffset u32} — entry.instCode == widget+0x2C →
+   **windowObj[slotOffset] = widget pointer**.
+10. sizeOut = end − desc; returns the widget pointer.
+
+### 15.2 KNTR (tab container) — payload and child model
+
+- classObj @0x466690: size 0x70, initFn `kntrWidgetInit` 0x412780, teardown
+  0x412810, childCountFn `kntrHasChildren` 0x412860; 17 non-NULL method
+  slots (+0x18..+0x5C).
+- `kntrWidgetInit(widget, payload, payloadSize, b22)`:
+  `[widget+0x34] |= 0x20` (container bit); if payloadSize ≥ 0xC:
+  widget+0x5C = bswap(payload+0 u32), +0x60 = bswap(payload+4 u32),
+  +0x64 = swap16(payload+8 u16).
+- **12-byte KNTR payload** = {u32BE A, u32BE B, u16BE C}. Observed: A=B=0
+  always; C = 1 (root tab containers: doku root, prvw root) or 3 (tab pages:
+  all 7 doku pages, all 8 prvw tabs). C semantics = **UNKNOWN** (values only;
+  no discriminating code path read yet).
+- KNTR is the only class that gets children from records; HOLD pages host
+  runtime-built children (CLST lists — see A3) via builder code.
+
+### 15.3 BPMN (bitmap/pull-down menu) — payload and menu model
+
+- classObj @0x467874: size 0x40, initFn `bpmnWidgetInit` 0x436430, teardown
+  0x436550, stateNotify 0x409BF0 (+0x5C), +0x60 = 0x4365E0.
+- `bpmnWidgetInit(widget, payload, payloadSize, b22)`: if payloadSize < 0xC
+  use a zeroed 12-byte local.
+  - If `bswap(payload+0) ≠ 0`: **menuCreateFromBuiltIn** (0x412490):
+    lookupBuiltInRec(**MENU** 0x4D454E55, ref, &size) → menuPayloadParse →
+    menu object; then menu+0x18 = 0x436160 (**a function pointer** —
+    `push ebp/mov ebp,esp` prologue at 0x436160), menu+0x1C = widget.
+  - Else: **menuObjectCtor** (0x40FB90, renamed): memAllocZeroed(0xA4);
+    menu+0x18 = 0x436160 (fn), +0x1C = widget, +0x50 = ref, +0x5C = −1,
+    +0x6C = −1; if ref & 8 → variant size 0x12.
+  - `widget+0x38` = menu; then CALL 0x411E80(0x4361D0, menu, widget)
+    (0x4361D0 = a thunk function; 0x411E80 attaches item handling).
+- **12-byte BPMN payload** = {u32BE menuRefA, u32BE menuRefB, u32 reserved}.
+  Observed: doku "menu" = {0,0,2}; doku "scal" = (to verify); prvw
+  pmnu/umen/mnu2 = {2,0,0}-style; mnu3/tmnu have sz=0 (→ empty local →
+  empty inline menu). menuRef values that are non-zero and not a %MNU
+  instance (exam/fsit/scal) hit the lookup-fail path — see open items.
+
+### 15.4 Window-own block (VWIN payload, 44–64 B) — parser reads
+
+`vuuPayloadParse` (0x408B60) validated: payload > 7; tag "%VUU" (u32BE at
++0); u16BE version 1 at +4; first record VWIN at +8; VWIN size ≥ 0x2C and
+record fits; title pstr at **payload+0x5B** (block+0x2B) fits. Then:
+
+| block offset | read | use |
+|---|---|---|
+| +0x00 | u32BE "options word" | → `windowCtor` (0x40BFA0) arg3 |
+| +0x04 | u32BE | bswap → `FUN_0040CC30`(window, val) |
+| +0x0C..+0x12 | 4×u16BE quad | if any ≠ 0: scaleQuad → `FUN_0040C9A0`(window, q0..q3) |
+| +0x14 | u8 mode | 0 → `FUN_0040CAC0`(window, u32@+0x14); 2 → none; else `FUN_0040CB10`(window, byte) |
+| +0x23.. | pstr (u8 len + bytes) | window name (default; caller may override via 8th arg) |
+
+Observed values: options word = 0 (efik/esik/prvw), 0x1000010F (doku),
+0x10000001 (emik), 0x10000009 (epxm); quad = (380,296,20000,20000) (doku),
+(512,0,0,0) (efik/emik/epxm/prvw), (0,0,0,9)+stray (esik — its block has a
+different layout, see below). Block sizes vary 44/56/60/64; beyond the
+parser-read fields the content is builder-specific: esik puts a title pstr
+at +0x13.., the size pair (430,246) at +0x28 and a trailing 0x0C at +0x3C;
+efik/prvw carry a 2nd size pair at +0x08 (efik 1000×246 = max size) and the
+title pstr at +0x23 (parser default spot). The "KNTR" ASCII at the tail of
+efik/esik/prvw blocks = the sole child's class spelling (informational).
+
+### 15.5 Window object construction (resolves S1 "window ctor" items)
+
+`widgetAllocInit` (0x408670): obj = memAllocZeroed(max(size,0x28));
+scaleQuad(geom) into local; `windowCtor` (0x40BFA0; S1's "FUN_0040BFA0
+ctor") ← (geom, options word, arg4, name, obj); `[obj+0x0C]` = its result;
+`windowDefaultPaintInstall` (0x40AE70; S1's "FUN_0040AE70 default-paint") ←
+(obj+0x0C, **0x46624C** — a static data constant); `obj+0x00` = magic
+0x5655d881; **`obj+0x04` = classWind (0x466188) always** — the "classCode"
+is NOT a class lookup; all windows are WIND-class objects. (0x46624C content
+and the four window methods 0x40C9A0/0x40CAC0/0x40CB10/0x40CC30 → Batch B.)
+
+### 15.6 prvw (live preview) tree — summary
+
+VWIN 360×340 → KNTR (11 children): MBAR "mbar" (0,0 360×20), BPMN "pmnu"
+(main menu, 5,25 195×45), SEPR, then 8 tab pages (KNTR): **misc** (15:
+KLBL+TXTS, HOLD "list" 210×170, PRGS "pbar", SLDR "pbsl" + disabled SLDR,
+3×BUTN, SEPR, BPMN "umen", 2×TIKB, IKBT, IKON), **tiks** (14: 12×TIKB in
+2 cols × 6 rows — enabled/disabled pairs; "trit", "trim" named; 2 KLBL
+headers), **boxs** (5: SEPR + 3×BOX! + LABL), **slid** (8: 4 vertical +
+4 horizontal SLDR, enabled/disabled pairs), **hsbs** (8: 4 HOLD
+sbhd/sbhs/sbht/sbhi + 4 KLBL), **vsbs** (8: 4 KLBL + 4 HOLD sbvd/sbvs/
+sbvt/sbvi), **btns** (14: 4×BUTN, 2×IKBT, BPMN "mnu2"/"mnu3", TXTS
+"mnut"+anon, BPMN "tmnu"+anon, KLBL, **KOLR** color chooser 270×260),
+**lscc** (1: HOLD "lscl" 350×270 — hosts the runtime CLST list, A3).
+mode 0x1A = enabled pair, 0x0A = disabled pair (bit 0x10 of the 0x18 mask
+clear). This is the skin-preview window shown in the screenshots (widgets
+rendered in current-appearance, enabled+disabled side by side).
