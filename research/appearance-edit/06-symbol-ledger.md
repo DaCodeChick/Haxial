@@ -614,3 +614,42 @@ Parameter-audit status (C1 gate):
 
 Corrections recorded (doc 17 §16, doc 13 §3 note): state @+0x34; +0x2C is instance code;
 +0x36 is a flag byte; buttonHoverSet not a state writer.
+
+### S2 C1/Batch D front — menuDestroy thread + MBAR mechanism (2026-11-24)
+
+Ghidra changes (all read-back verified):
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x42EE00 FUN_0042ee00 → mbarAttachBuiltInMenu | rename+proto+comment | (mbar, insertIdx(-1=append), recordName4cc, titlePstr, arg5); menuCreateFromBuiltIn(0x42F070, mbar, name); title fallback chain → mbarAddMenu; itemArray[slot]=menu; defensive no-op menuDestroy(&0 local); returns slot; 3 callers (prvw ctor 0x401E30) |
+| 0x42EC50 FUN_0042ec50 → mbarAddMenu | rename+proto+comment | (mbar, insertIdx, namePstr, arg4); rec=memAlloc(len+0xD) {len@+4, self-ptr@+8, pstr@+0xC}; append to itemArray@+0x40; cnt u8 @+0x3D cap 0x20 (hError 0x1000E/0x4D42/0xA1) |
+| 0x42F070 FUN_0042f070 → previewMbarCmdHandler | rename+proto+comment | (mbar, cmdEvent28); cmd struct {cbCtx@+0x24, mbar@+0x28, selIdx@+0x3C, cmd28@+0x2C}; mbarPopupShow(mbar,-1) first; cmdCbFn(mbar+0x30) dispatch |
+| 0x42F0E0 FUN_0042f0e0 → mbarPopupShow | rename+comment | (mbar, index(-1=clear), outInfo); slot click: selIdx mgmt, popupMenuClose old, menuDestroy(&mbar+0x38), mbarSlotGeometry, geomCb (+0x20), popupMenuShow (0x410C60) or menuObjectCtor(0x40FB90,0x42F070,1,mbar+0x2C)+emptyMenuCb(+0x28) populate |
+| 0x42EEA0 FUN_0042eea0 → mbarRefRegister | rename+proto+comment | (mbar, fn, ctx) → +0x18/+0x1C; hError 0x121/0x4D42/0x10019 on bad magic |
+| 0x42EEE0 FUN_0042eee0 → mbarGeomCbRegister | rename+proto+comment | (mbar, fn, ctx) → +0x20/+0x24 |
+| 0x42EF20 FUN_0042ef20 → mbarCmdCbRegister | rename+proto+comment | (mbar, fn, ctx) → +0x30/+0x34 |
+| 0x42EB30 FUN_0042eb30 → mbarSlotGeometry | rename (provisional) | (mbar, index, &local) — geometry helper; full decode deferred to D3 |
+| 0x411C80 FUN_00411c80 → menuBarTitleGet | rename+proto+comment | (menu, outBuf, row); selCursor<cnt && style&2 → menuRowTitleCopy else copy namePstr (+0x54) via 0x438880; hError 0x774/0x504D/0x10019 |
+| 0x4115B0 FUN_004115b0 → menuRowTitleCopy | rename+proto+comment | (menu, row, outBuf, arg4); item=row<cnt → copy item title pstr (item+0x18); 1 if found; hError 0x5D5/0x504D/0x10019 |
+| 0x40FCC0 menuDestroy | proto+comment | `void menuDestroy(uint *slot)` — SLOT-destructor contract (zero-skip, bad-magic zero, full teardown, slot zeroed last) |
+| 0x42E9E0 mbarSubObjCtor | proto+comment | `void *mbarSubObjCtor(uint *mbarWidget)` — alloc 0xC0, magic, 16B widget snapshot +0x04..+0x14, selIdx=0xFF |
+| 0x43CD50 mbarWidgetInit | comment | subObj @widget+0x38 + 3 register calls |
+| mbarSubObj | struct replaced | 192 B, 19 components: snapshot {classObj,parentWidget,rawX,rawY} @+0x04, refFn/refCtx @+0x18, geomCb @+0x20, emptyMenuCb @+0x28, cmdCb @+0x30, activeMenu @+0x38, selIdx u8 @+0x3C, cnt u8 @+0x3D, itemArray[32] @+0x40 (was itemArray[20]+pad48 — B2 corrected) |
+| menuObj | doc correction | namePstr @+0x54 (B2 doc said +0x58; Ghidra struct fixed in prior checkpoint) — consumers: menuDestroy free, menuBarTitleGet source, parse store |
+
+Parameter-audit status (C1 gate, this batch):
+- **changed & verified (names+types):** 10 functions above (full param sets
+  from disassembly; arg2/insertIdx = uint; row = int where sign semantics
+  observed).
+- **partially audited:** mbarPopupShow (outInfo struct layout unverified —
+  comment only, no prototype), previewMbarCmdHandler (cmdEvent28 internals
+  unverified — prototype set for the two verified params).
+- **deferred:** mbarSlotGeometry (D3), refFn/emptyMenuCb writers, prvw setup
+  helpers.
+
+Corrections recorded (doc 17 §17, doc 07): the "0x40FD20 mid-function call"
+was a decode-arithmetic error (target = 0x40FCC0 menuDestroy entry);
+"exam" %MNU IS referenced by the prvw preview (mbarAttachBuiltInMenu ×3),
+superseding the B2 "unreferenced sample data" note (B2 ledger entry above
+remains as a historical record of the scoped claim); mbarSubObj itemArray
+cap 0x20 with 32-pointer array.

@@ -344,6 +344,19 @@ reconstruct the enclosing records, not just the FourCC pairs.
   Ledger C3 section written. Doc 17 §15 written; §14 updated.
 
 ### In progress
+- **Batch D (geometry) — ACTIVE** (next: D1 HOLD/scrollbar object model via
+  HOLD initFn 0x43CC30 + preview sbhd/sbvs instances; D2 SLDR 0x438060;
+  D3 scaleQuad 0x429C70 + mbarSlotGeometry 0x42EB30 + coordinate spaces;
+  part tables 0x45F0C0–0x45F0DC / 0x45F61C–0x45F660 consumers; C1
+  absorption: state-bit consumers, detach counterpart +0x8C?, list dtor).
+- **Resolved 2026-11-24 (menuDestroy thread + MBAR mechanism — doc 17 §17)**:
+  "0x40FD20 mid-function call" = decode-arithmetic error (target 0x40FCC0
+  entry; capstone-verified); menuDestroy slot-destructor contract;
+  mbarSubObj fully mapped (192 B; cb pairs; itemArray[32]); MBAR runtime
+  chain decoded (mbarWidgetInit/mbarAttachBuiltInMenu/mbarAddMenu/
+  mbarPopupShow/previewMbarCmdHandler/menuBarTitleGet); "exam" menu IS
+  referenced (prvw preview ×3 — B2 scoped-claim corrected); 10 renames +
+  10 protos + 12 comments + mbarSubObj struct replaced (read-back verified).
 - **C1 (enrichment gate)** — widget-base re-audit **DONE** (doc 17 §16):
   state word @+0x34 (S1's +0x0D wrong); widgetInstantiate field-source
   table; +0x2C = instance code; +0x36 = flag byte; widgetBase rebuilt;

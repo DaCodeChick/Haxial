@@ -199,7 +199,9 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
   verified), flags24 semantics, BPMN→%MNU association for all 9 BPMN nodes,
   full open/select/toggle/dispatch/destroy lifecycle, corpus walk EXACT for
   all three built-in menus (47 items, zero leftover). "exam" menu is
-  unreferenced sample data. Menu command dispatch to app messages closed via
+  unreferenced sample data **from %VUU/BPMN** (corrected 2026-11-24: it IS
+  referenced by the prvw preview constructor via mbarAttachBuiltInMenu ×3 —
+  doc 17 §8.6/§17). Menu command dispatch to app messages closed via
   widgetMsgBubble → class+0x9C.
 - **%VUU window trees — RESOLVED (S2 C3, doc 17 §15)**: all six windows
   walk exact; 209 records / 89 instances; instance tables 1:1.
@@ -227,6 +229,24 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
   (d) widgetInstantiate arg4/arg5-arg8 exact roles (arg5-8 = windowObj/
   instTable/instCount/sizeOut per §15.1 instance-registration step, to be
   re-verified against a call site).
+- **menuDestroy thread closure + MBAR sub-object mechanism — RESOLVED
+  (2026-11-24, doc 17 §17)**: the suspected "mid-function call to
+  0x40FD20" was a hand-decode arithmetic error; the call at 0x42EE8C targets
+  menuDestroy entry 0x40FCC0 normally (capstone-verified from file bytes).
+  menuDestroy is a slot-destructor: `menuDestroy(uint *slot)` — zero slot →
+  return, bad magic → zero slot, else full recursive teardown (menu2/surface/
+  listModel/subObj/name/itemArray/menu) with the slot zeroed last.
+  mbarSubObj (192 B, magic 0x455E0FD3) fully mapped: +0x04..+0x14 widget
+  snapshot, ref/geom/emptyMenu/cmd cb pairs @+0x18..+0x34, activeMenu
+  @+0x38, selIdx u8 @+0x3C, cnt u8 @+0x3D (cap 0x20), itemArray[32] @+0x40.
+  MBAR chain: mbarWidgetInit → mbarSubObjCtor + 3 register helpers;
+  mbarAttachBuiltInMenu (creates built-in menu + appends bar slot);
+  mbarPopupShow (slot click: close old, destroy active, geometry cb,
+  popupMenuShow or create+populate empty menu); previewMbarCmdHandler
+  (item activation → cmdCb with 0x2C-byte event). 10 renames + 10
+  prototypes + 12 comments + mbarSubObj struct replacement, read-back
+  verified. New open items: mbarSlotGeometry (0x42EB30) decode (D3),
+  refFn/emptyMenuCb writers, prvw setup helpers 0x402280/0x401A20/0x401BB0.
 - **Owner-approved Rust workspace architecture — RECORDED (2026-11-21)**:
   `docs/architecture/rust-workspace.md` (haxial-core contracts crate,
   backend crates wgpu/sdl/win32, haxial-ui public crate with optional

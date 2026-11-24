@@ -475,9 +475,13 @@ blobs are 0x1A B with flags24 = 0x50000 and no title (hard-coded in
 +0x3C  4B   cursorLo (u32, -1; insert-adjusted; second consumer not yet traced)
 +0x50  2B   style (u16, from header +0x1C; bit 1 (value 2) = selection-list mode —
                        menuRowSelect invokes selCallback only when style & 2)
-+0x58  4B   namePstr (header name when nameLen > 0; memFree'd in menuDestroy)
++0x54  4B   namePstr (header name when nameLen > 0; memFree'd in menuDestroy via 0x41BCA0;
+                       source pstr in menuBarTitleGet 0x411C80 fallback — +0x54 CONFIRMED,
+                       B2's +0x58 was wrong; offset corrected 2026-11-24)
++0x58  4B   f58 (unknown; written by parse path — not yet traced)
 +0x5C  4B   selCursor (u32; INITIALIZED FROM HEADER field5c — corpus 0xFFFFFFFF = none;
-                       written by menuRowSelect, insert-adjusted)
+                       written by menuRowSelect, insert-adjusted; bounds-checked against
+                       itemCnt in menuBarTitleGet)
 +0x60  1B   rowSize (0x10)
 +0x61  1B   f61 (set 1 after parse/insert; purpose unknown)
 +0x68  4B   menu2 (second/linked menu — menuDestroy 0x40FCC0 recurses here;
@@ -530,11 +534,16 @@ this session — the PE reader is authoritative):
 | epxm | trns, tsty | 0 | empty (style 2) |
 | prvw | pmnu, umen, mnu2 | 0 | empty (style 2) |
 
-**"exam" is referenced by nothing in this build** — no .text constant, no
-BPMN payload, no data pointer (the two .rdata hits are the English words in
-"for example: joe@example.com"). It is a developer sample menu (PROBABLE).
-No %MNU record is written by this build's save path (the v2 writer emits no
-M section — see 04 § directory slots).
+**"exam" IS referenced by this build** (corrected 2026-11-24): the prvw preview
+constructor 0x401E30 calls `mbarAttachBuiltInMenu` (0x42EE00) three times with
+record name "exam" and titles "MenuBar" (pstr 0x45F79C), "Example" (0x45F800),
+"Tools" (0x45F808) — see §17. The earlier claim (no .text constant, no BPMN
+payload, no data pointer) was scoped wrong: the .text reference is the code
+constant "exam" = 0x6D617865 pushed at 0x402194/0x4021B3/0x4021D2 (PUSH
+immediate form, not a data pointer). The "exam" menu is the content of the
+preview window's three menu-bar slots. It remains unreferenced from %VUU/BPMN
+records. No %MNU record is written by this build's save path (the v2 writer
+emits no M section — see 04 § directory slots).
 
 ### 8.7 Runtime menu lifecycle (CONFIRMED chain)
 
@@ -558,8 +567,13 @@ selection (style 1 popup) → cmdHandler (menu+0x18) = bpmnMenuCmdHandler 0x4361
   bpmnMenuClose; copies 0x2C-byte message from the model row (id/value2/flags…);
   sets flag 0x1000; widgetMsgBubble 0x4097F0 → owner's class+0x9C message handler
 item removal → menuItemDtor 0x40F990 → textObjInvalidateRect 0x40CDB0(surface, rowRect)
-menuDestroy 0x40FCC0: recursive (menu2 @+0x68) → surface 0x40C270 → model
-dtor → subObj 0x41C600 → name pstr → item array → free
+menuDestroy 0x40FCC0 — SLOT-destructor contract (re-verified 2026-11-24):
+  menuDestroy(uint *slot): *slot==0 -> return; magic != 0x51BD8891 -> zero
+  slot, return; else destroy menu2 @+0x68 (recursive), surface 0x40C270,
+  listModel 0x422F30, subObj 0x41C600, name pstr @+0x54 (0x41BCA0), each
+  item blob (0x41BCA0, count @+0x10), itemArray, then the menu itself;
+  zero *slot last. All callers pass a pointer to a menu-pointer slot
+  (widget field, mbarSubObj field, or local).
 ```
 
 MBAR (menu-bar widget) association: `mbarWidgetInit` 0x43CD50 builds a
@@ -983,3 +997,165 @@ Ghidra: `widgetBase` rebuilt (instCode/flagsStored/state/b36/flagByte),
 `listWidgetObj` (64 B: base + listView @+0x38 + listModel @+0x3C) created
 in category /; `widgetClassObj.attachFn` @+0x88 pre-existing; comments on
 0x4093E0, 0x408750, 0x4215A0, 0x4209E0 — all read-back verified.
+
+## 17. C1/Batch D front — menuDestroy thread closure, MBAR sub-object
+mechanism, preview constructor (2026-11-24)
+
+### 17.1 The "mid-function call to 0x40FD20" — RESOLVED (no binary anomaly)
+
+The interrupted thread (CALL 0x42EE8C appearing to target 0x40FD20, inside a
+5-byte CALL instruction) was a **hand-decode arithmetic error**, not a Ghidra
+boundary error and not a mid-function entry:
+
+```
+0x42ee8c: e8 2f 0e fe ff   CALL rel32 = 0xFFFE0E2F = -0x1F1D1
+target = 0x42EE91 (next IP) - 0x1F1D1 = 0x40FCC0   <- menuDestroy ENTRY
+```
+
+Verified with an independent capstone-5.0.7 decode of the exact file bytes:
+both `menuDestroy` (from 0x40FCC0) and the caller (from 0x42EE00) disassemble
+with 0x40FD20 strictly **inside** the `CALL 0x422F30` instruction at 0x40FD1E,
+and the caller's CALL resolves to 0x40FCC0. Ghidra's listing (`CALL 0x0040fcc0`
+at 0x42EE8C) was correct all along; the session's manual subtraction
+(0x42EE91 - 0x1F1D1) was miscomputed as 0x40FD20. Lesson recorded: byte-level
+call-target arithmetic must go through the PE-reader script (or capstone),
+never mental math.
+
+### 17.2 `mbarSubObj` — menu-bar widget sub-object (192 B, magic 0x455E0FD3 "MBAR")
+
+`mbarWidgetInit` (0x43CD50) is the MBAR class initFn: `subObj =
+mbarSubObjCtor(widget)`; `[widget+0x38] = subObj` (pv slot 0x6C); then three
+register helpers. Layout (struct `mbarSubObj` replaced in Ghidra — read-back
+verified, 192 B, 19 components):
+
+```
++0x00  4B   magic 0x455E0FD3
++0x04  16B  snapshot of mbarWidget->widgetBase+0x04..+0x14 = {classObj,
+             parentWidget, rawX, rawY}  (mbarSubObjCtor — code-verified)
++0x14  4B   pad14 (zero; role unknown)
++0x18  4B   refFn    (mbarRefRegister 0x42EEA0; consumer not yet traced)
++0x1C  4B   refCtx
++0x20  4B   geomCbFn (mbarGeomCbRegister 0x42EEE0; screen-rect callback,
+             consumed by mbarPopupShow)
++0x24  4B   geomCbCtx
++0x28  4B   emptyMenuCbFn (consumed by mbarPopupShow — populates a newly
+             created empty menu; writer = app-side registration, TBD)
++0x2C  4B   emptyMenuCbCtx
++0x30  4B   cmdCbFn (mbarCmdCbRegister 0x42EF20; consumed by
+             previewMbarCmdHandler)
++0x34  4B   cmdCbCtx
++0x38  4B   activeMenu (menuObj*; slot-destructor target in mbarPopupShow)
++0x3C  1B   selIdx (u8; initial 0xFF = no slot selected)
++0x3D  1B   cnt (u8; cap 0x20 -> hError 0x1000E/0x4D42/0xA1)
++0x40  128B  itemArray[32] (per-slot record: ptr to rec = memAlloc(len+0xD);
+             rec+4=len, rec+8=&rec+0xC (self-ptr), rec+0xC..=pstr copy)
+```
+
+Note: the B2-era struct had `itemArray[20]` at +0x40 with 48 B trailing
+padding; the cap-0x20 logic requires 32 slots — the "padding" was the tail
+of the array (B2 struct corrected, 192 B unchanged).
+
+### 17.3 MBAR runtime chain (CONFIRMED, disassembly-verified)
+
+```
+mbarWidgetInit 0x43CD50 (class initFn):
+  subObj = mbarSubObjCtor(widget)          0x42E9E0 (alloc 0xC0, snapshot, selIdx=0xFF)
+  [widget+0x38] = subObj
+  mbarRefRegister(subObj, fn, ctx)         0x42EEA0 (+0x18/+0x1C)
+  mbarGeomCbRegister(subObj, fn, ctx)      0x42EEE0 (+0x20/+0x24)
+  mbarCmdCbRegister(subObj, fn, ctx)       0x42EF20 (+0x30/+0x34)
+
+mbarAttachBuiltInMenu 0x42EE00 (mbar, insertIdx(-1=append), recordName4cc, titlePstr, arg5):
+  menu = menuCreateFromBuiltIn(previewMbarCmdHandler 0x42F070, mbar, recordName)
+  title = titlePstr if *titlePstr != 0 else menuBarTitleGet(mbar, &buf, -1)
+          result (falls back to pstr 0x457988 = "Untitled" when that fails)
+  slot = mbarAddMenu(mbar, -1, title, 0)   0x42EC50 (append; rec = len+0xD)
+  itemArray[slot] = menu
+  menuDestroy(&zeroed local)               defensive no-op (slot == 0)
+  return slot
+
+mbarPopupShow 0x42F0E0 (mbar, index(-1=clear), outInfo):  // slot click
+  index >= cnt -> -1; oldSel = selIdx; selIdx = index; if same -> return
+  if oldSel valid: popupMenuClose(0x410EB0, itemArray[oldSel])
+  menuDestroy(&mbar+0x38)                  // activeMenu slot
+  mbarSlotGeometry(mbar, index, &local)    0x42EB30 (decode pending — D3)
+  if index valid:
+    geomCbFn(geomCbCtx, ...)               // screen rect from +0x20 cb
+    menu = itemArray[index]
+    if menu: popupMenuShow(0x410C60, menu, &local, outInfo, rect)
+    else if emptyMenuCbFn: newMenu = menuObjectCtor(0x40FB90, 0x42F070, 1, mbar+0x2C)
+                           emptyMenuCbFn(mbar+0x2C ctx, index, newMenu, &local)
+                           popupMenuShow(...)
+
+previewMbarCmdHandler 0x42F070 (mbar, cmdEvent28):  // menu item activation
+  local cmd struct: +0x24=cmdCbCtx, +0x28=mbar, +0x3C=selIdx
+  mbarPopupShow(mbar, -1, &local)          // close current popup first
+  memcpy(&local+0x2C, cmdEvent, 0x2C)      // 0x41BB10
+  if cmdCbFn: cmdCbFn(cbCtx, mbar, selIdx, &cmd28)
+
+menuBarTitleGet 0x411C80 (menu, outBuf, row):
+  if selCursor < itemCnt && (style & 2): menuRowTitleCopy(menu, selCursor, outBuf, row)
+  else: copy menu namePstr ([menu+0x54]) via 0x438880; AL = status
+```
+
+The "selected item's title" behavior (menuBarTitleGet) is what makes a menu
+bar slot display the current selection (e.g. the scale menu shows the chosen
+scale) — but only for menus created in selection mode (style & 2) with a
+valid selCursor; otherwise the menu's own name is shown. The prvw preview
+uses static titles ("MenuBar"/"Example"/"Tools") because the caller pstr is
+non-empty and takes priority.
+
+### 17.4 prvw preview constructor (0x401E30) — widget list (CONFIRMED)
+
+```
+win = windowCreateFromBuiltIn(0x408ED0, 0xA0, "prvw"(0x45F648), instTable 0x45F57C (29), 0, 0)
+winMenu = win->menu @+0x58 (slot 0x58)
+  menuAddItemPstr 0x40AF80 x8: "Buttons"(0x45F714) flags 0xA0,
+    "Scroll Bars"(0x45F72E), "Sliders"(0x45F73F), "Tick Buttons"(0x45F74A),
+    "List"(0x45F75A), "Colors"(0x45F75F), "Icons"(0x45F768),
+    "Mouse Icons"(0x45F770); separator 0x40B1A0;
+    "Disabled"(0x45F782) labelSetText 0x409910 (label widget @win+0x58? — slot 0x58),
+    "Disabled"(0x45F774) x2, "Label"(0x45F77D) flags 0xA0
+mbar = win+0x6C (slot 0x6C -> MBAR widget+0x38 = mbarSubObj)
+  mbarAttachBuiltInMenu x3: (0x40218C/0x4021AB/0x4021CA) "exam" record,
+    titles "MenuBar"(0x45F79C), "Example"(0x45F800), "Tools"(0x45F808)
+  win+0x68 slot: flagsStored 0xA0 (MBAR widget state flags)
+win+0x98 slot: flagsStored 0x9E; win+0x9C slot: flagsStored 0x9F  (preview-specific)
+setup: 0x402280 (7x), 0x401A20, 0x401BB0
+```
+
+(8 tab titles match the prvw %VUU instance names hsbs/vsbs/slid/etc. tabs;
+the menu bar's three exam slots are the "MenuBar"/"Example"/"Tools" demo
+menus visible in the preview screenshot `refs/screenshots/...` prvw tab —
+the exam %MNU's items: First/Second Menu Item, separator, Disabled, Item
+With Icon, Disabled With Icon, Ticked.)
+
+### 17.5 Ghidra enrichment (this batch — read-back verified)
+
+- Renames (10): mbarAttachBuiltInMenu (0x42EE00), mbarAddMenu (0x42EC50),
+  previewMbarCmdHandler (0x42F070), mbarPopupShow (0x42F0E0),
+  mbarRefRegister (0x42EEA0), mbarGeomCbRegister (0x42EEE0),
+  mbarCmdCbRegister (0x42EF20), mbarSlotGeometry (0x42EB30, provisional),
+  menuBarTitleGet (0x411C80), menuRowTitleCopy (0x4115B0).
+- Prototypes (10): the above 9 + menuDestroy (0x40FCC0) =
+  `void menuDestroy(uint *slot)`; mbarSubObjCtor `void* (uint*)`.
+- Comments (12): menuDestroy, mbarAttachBuiltInMenu, mbarAddMenu,
+  previewMbarCmdHandler, mbarPopupShow, menuBarTitleGet, menuRowTitleCopy,
+  mbarSubObjCtor, mbarWidgetInit, mbarRefRegister, mbarGeomCbRegister,
+  mbarCmdCbRegister.
+- Struct: `mbarSubObj` replaced (192 B, 19 components — cb fields mapped,
+  itemArray[32]).
+- Struct: `menuObj` field offsets corrected in §8.4 above (+0x54 namePstr);
+  Ghidra struct already updated in the prior checkpoint.
+
+### 17.6 Open items from this batch
+
+- `mbarSlotGeometry` (0x42EB30) full decode — **D3** (screen-rect math from
+  the +0x04..+0x14 widget snapshot).
+- Writers/consumers of `refFn`/`refCtx` (+0x18/+0x1C) and of
+  `emptyMenuCbFn` (+0x28) — app-side registration sites (doku doc menu bar,
+  preview callback wiring).
+- `pad14` @+0x14 role; `f58` (menuObj+0x58) writer.
+- 0x402280/0x401A20/0x401BB0 (prvw setup helpers) — D-late or V.
+- The `0x410EB0` (popupMenuClose) / `0x410C60` (popupMenuShow) parameter
+  conventions (event struct, rect, outInfo) — D3.
