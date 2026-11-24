@@ -710,8 +710,12 @@ No C-string boundaries were altered.
 - **B2/E:** `%MNU` item field semantics (type/id/state/arg) via menu
   activation; `(MENU, exam)` vs the doku "menu" BPMN's actual content
   record.
-- **C1:** per-function parameter/local audit gate for all renamed functions;
-  widgetStateSet re-audit against the corrected base layout.
+- ~~**C1:** per-function parameter/local audit gate for all renamed
+  functions; widgetStateSet re-audit against the corrected base layout.~~
+  **PARTIALLY RESOLVED (2026-11-21, §16):** widgetStateSet re-audit done
+  (state @+0x34); CLST/LSTS ctor params + list ownership + parent attach
+  done; widgetBase rebuilt. Systematic sweep of the remaining ~150 renamed
+  functions deferred (per-batch + V final sweep).
 - **E/G:** §10 part tables → D-role indices. (LSTS/CLST consumer analysis
   RESOLVED in A3 — list widget classes, not D-section; see doc 18.)
 - **F:** built-in 8×8 font block at `0x4709xx–0x478xxx` (`wvgw` glyphs etc.).
@@ -861,3 +865,99 @@ sbvt/sbvi), **btns** (14: 4×BUTN, 2×IKBT, BPMN "mnu2"/"mnu3", TXTS
 mode 0x1A = enabled pair, 0x0A = disabled pair (bit 0x10 of the 0x18 mask
 clear). This is the skin-preview window shown in the screenshots (widgets
 rendered in current-appearance, enabled+disabled side by side).
+
+## 16. C1 — widget base re-audit, state-word correction, list-ctor decode (2026-11-21)
+
+### 16.1 `widgetStateSet` (0x4093E0) — state word is @+0x34, NOT +0x0D
+
+Disassembly re-audit (S1/doc 13 §3 recorded "u16 state @+0x0D" — **WRONG**):
+
+```asm
+CMP [widget+0x00], 0x5655D881        ; magic
+MOVZX ECX, word [widget+0x34]        ; state = u16 @ +0x34
+EDX = bits & mask
+ECX = (state & ~mask) | (bits & mask)
+if (ECX & 1) ECX &= ~1               ; bit 0 (0x01) can only be CLEARED here
+if (!(ECX & 2)) ECX &= ~2            ; (no-op branch; bit 1 unconstrained)
+if (ECX == state) return 0
+word [widget+0x34] = ECX
+class = [widget+0x04]                ; classObj  ✓ matches corrected layout
+notify = [class+0x5C]                ; stateNotifyFn ✓
+if (notify) notify(new, old, widget)
+return 1
+```
+
+- The `+0x0D` recorded in S1 was an artifact of the same pointer-display
+  misread that affected the B2 pass; the true state word is the `ushort`
+  at **+0x34** (widgetBase.state), shared with the instantiation-time
+  `(descMode & 0x18) | 1` value (§15.1) and the paint-visibility filter
+  (kntrPaint checks child+0x34 & 0x08 — B2).
+- **Bit 0 (0x01) "active":** set at instantiation (`(mode&0x18)|1`);
+  `widgetStateSet` may clear it but never set it (one-way).
+- **Bit 1 (0x02) "hilited":** S1's `buttonHoverSet` (0x43BDD0) does NOT
+  touch the widget state word — it sets/clears bit 2 in four button-internal
+  per-element words (+0x84/+0x98/+0xAC/+0xC0 of the button object,
+  confirmed by disassembly). The widget-level hilite writer remains
+  untraced (open).
+- **Bit 3 (0x08) "visible":** kntrPaint child filter (B2).
+- **Bits 4–5 (0x18):** from descriptor mode (instantiation).
+- **0x20 (bit 5):** settable; CLST/LSTS ctors OR 0x20 in after init.
+- Notification = `[class+0x5C]` = widgetClassObj.stateNotifyFn ✓ (consistent
+  with the corrected layout; S1's "(widget+4) vtable+0x5C" reading of the
+  code was right about the path, wrong about the state address).
+
+### 16.2 `widgetInstantiate` (0x408750) — field sources confirmed
+
+arg mapping: (desc, parent, bufLen, …). Verified writes:
+
+| widget offset | source | form |
+|---|---|---|
+| +0x00 | constant | 0x5655D881 |
+| +0x04 | classTableLookup(bswap32(desc+0x00)) via 0x409150 | ptr (set by outer flow after ctor) |
+| +0x08 | parent (arg2, magic-checked 0x5655D881) | ptr |
+| +0x0C..+0x1B | desc+0x04..+0x0B | 4 × i16BE sign-extended to int |
+| +0x1C..+0x27 | scaleQuad (0x429C70) over the raw quad | 4 × int |
+| +0x2C | desc+0x0C (instance 4cc) | byte-permuted u32 (permutation consumer-side, unverified) |
+| +0x30 | desc+0x10 (flags u32BE) | byte-permuted u32 |
+| +0x34 | (i16(desc+0x20) & 0x18) \| 1 | u16 state |
+| +0x37 | desc+0x23 | byte |
+
+Allocation = max(classObj+0x08, 0x38). Bounds: desc+0x28+round4(desc+0x14)
+≤ desc+arg3. Descriptor layout per the walker (instance @+0x0C, flags
+@+0x10, size @+0x14, mode @+0x20, b22 @+0x22, b23 @+0x23) is consistent with
+every source read above.
+
+### 16.3 CLST / LSTS ctors — parameters and object layout (CONFIRMED)
+
+`clstWidgetCtor` (0x4215A0) and `lstsWidgetCtor` (0x4209E0) are mirror
+images:
+
+- **Signature:** (minSize, parent, quadSrc16, flags, flagsStored, listOpts).
+- **Allocation:** max(minSize, class min) — CLST **0x54 (84 B)**, LSTS
+  **0x4C (76 B)**.
+- **Base fill:** identical to widgetInstantiate (magic, raw quad ← arg3,
+  scaleQuad → +0x1C, state @+0x34, +0x37 = flags&0xFF); additionally
+  **+0x36 = 0x20 when flags & 0x400** (so +0x36 is a real flag byte, not
+  padding); +0x30 = flagsStored (arg5, stored as-is — the permuted desc form
+  only appears on the instantiate path).
+- **State bits (ctor path):** CLST: 1 | (flags&0x100 ? 8 : 0) |
+  (flags&0x200 ? 0 : 0x10); LSTS: same plus unconditional `state |= 0x20`.
+- **Parent attach (C1 "parent attach" item CLOSED):** magic-check parent,
+  require `[parentClass +0x88]` (widgetClassObj.attachFn) non-NULL (else
+  hError 0x6ED/0x56/0x10002), call `attachFn(parent, child)`, then
+  `[child+0x08] = parent`. Detach counterpart (likely +0x8C) not yet traced.
+- **List objects (ownership item CLOSED):** `listViewCtor` (0x447590,
+  args (obj, cb 0x41F970, 0xB, 0, listOpts|0x124, quadSrc)) → **listView
+  @+0x38**; `listModelCtor` (0x422EB0) → **listModel @+0x3C**. Both owned
+  by the list widget (dtor frees — to verify in teardown audit).
+- **Event registrations:** 6 model-side (wrappers 0x4242D0/0x424410/
+  0x424390/0x424310/0x424350/0x424510 with callbacks 0x41F990/0x41F9B0/
+  0x41FA50/0x421540/0x420900/0x420960) + 2 view-side (0x448960/0x4489A0
+  with 0x4218E0/0x421970). 0x420900/0x420960 sit in the LSTS address range
+  → shared list callbacks. Wrapper names deferred to the list-subsystem
+  pass (pattern is uniform: (widget, callbackFn, model|view)).
+
+Ghidra: `widgetBase` rebuilt (instCode/flagsStored/state/b36/flagByte),
+`listWidgetObj` (64 B: base + listView @+0x38 + listModel @+0x3C) created
+in category /; `widgetClassObj.attachFn` @+0x88 pre-existing; comments on
+0x4093E0, 0x408750, 0x4215A0, 0x4209E0 — all read-back verified.

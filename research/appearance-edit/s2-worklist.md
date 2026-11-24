@@ -344,11 +344,17 @@ reconstruct the enclosing records, not just the FourCC pairs.
   Ledger C3 section written. Doc 17 §15 written; §14 updated.
 
 ### In progress
-- **C1 (enrichment gate)** — per-function parameter/local audit; widgetBase
-  re-verification; widgetStateSet re-audit vs corrected layout; class ctor
-  params (incl. CLST/LSTS); list model/view ownership; container child
-  storage; parent attach/detach; editor-side vs toolkit object distinction.
-  (B2 remainder completed 2026-11-21 — see below.)
+- **C1 (enrichment gate)** — widget-base re-audit **DONE** (doc 17 §16):
+  state word @+0x34 (S1's +0x0D wrong); widgetInstantiate field-source
+  table; +0x2C = instance code; +0x36 = flag byte; widgetBase rebuilt;
+  CLST/LSTS ctors decoded (sig, min sizes 0x54/0x4C, view @+0x38,
+  model @+0x3C, attach via [parentClass+0x88]); 3 semantic prototypes
+  applied (widgetStateSet, clst/lstsWidgetCtor). buttonHoverSet
+  reclassified (button-internal, not state writer). REMAINING: systematic
+  per-function param/local sweep of ~150 renamed fns (deferred — each
+  needs its own disassembly check; done per-batch + V sweep), widget
+  detach counterpart (+0x8C?), widget-level hilite (0x02) writer,
+  list-widget dtor ownership check (batch G/teardown).
 
 ### Pending
 - D (geometry: scrollbar/slider part tables 0x45F6xx/0x45F0xx consumers),

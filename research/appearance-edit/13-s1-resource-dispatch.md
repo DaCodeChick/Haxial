@@ -92,7 +92,18 @@ so **section E is the glyph/ink section** (its runtime layout beyond the
 byte length is not yet decoded; the editor's .fnt font files feed this path
 — see open questions).
 
-## 3. Widget state machine (CONFIRMED)
+## 3. Widget state machine (CONFIRMED) — **state address SUPERSEDED by S2 C1**
+
+> **CORRECTION (S2 C1, 2026-11-21 — doc 17 §16.1):** the state word is the
+> `ushort` at **widget+0x34**, not +0x0D. `buttonHoverSet` (0x43BDD0) does
+> not write the widget state word — it manages four button-internal element
+> words (+0x84/+0x98/+0xAC/+0xC0). Bit semantics: 0x01 active (set at
+> instantiation `(descMode&0x18)|1`; stateSet can only clear it), 0x02
+> hilited (widget-level writer untraced), 0x08 visible (kntrPaint filter),
+> 0x10/0x20 mode bits (descriptor/ctor-derived). Notification path
+> `class = [widget+0x04]; notify = [class+0x5C]; notify(new, old, widget)`
+> was correct in S1 and stands. The code block below is kept for the record
+> with the wrong offset flagged.
 
 `widgetStateSet` (0x4093E0):
 

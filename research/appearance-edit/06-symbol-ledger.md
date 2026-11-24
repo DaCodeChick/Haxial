@@ -592,3 +592,25 @@ decompiler int-index display); selCallback/ctx are @+0x20/+0x24 (not +0x80/
 record-name-or-0, refB style, w2}; %MNU payload sizes are 0x218/0x78C/0x328
 (the "…B" values in session notes were misreads of the rezRec size+offset
 boundary). "exam" %MNU is unreferenced by this build (sample data, PROBABLE).
+
+### S2 C1 — widget base re-audit + list ctors (2026-11-21)
+
+Ghidra changes (all read-back verified):
+
+| Item | Kind | Detail |
+|---|---|---|
+| `widgetBase` rebuilt | struct | +0x2C instCode (was "classCode4cc" — it is the instance 4cc, source desc+0x0C), +0x30 flagsStored (source desc+0x10), +0x34 state u16 (was "mode"), +0x36 b36 (real flag byte, 0x20 when ctor flags&0x400), +0x37 flagByte, raw/scaled quad naming |
+| `listWidgetObj` | struct (new) | 64 B: widgetBase + listView @+0x38 + listModel @+0x3C (CLST/LSTS shared used layout; allocations ≥0x4C/0x54) |
+| 0x4093E0 widgetStateSet | prototype+comment | (uint *widget, ushort mask, ushort bits); **state word @+0x34, NOT +0x0D** (S1 correction); bit0 one-way-clear; notify = [class+0x5C](new, old, widget) |
+| 0x408750 widgetInstantiate | comment | full field-source table (doc 17 §16.2); arg5/arg6 usage unverified (params left as-is) |
+| 0x4215A0 clstWidgetCtor | prototype+comment | (minSize, parent, quadSrc16, flags, flagsStored, listOpts); min 0x54; view @+0x38, model @+0x3C; attach via [parentClass+0x88] |
+| 0x4209E0 lstsWidgetCtor | prototype+comment | same shape; min 0x4C; state |= 0x20 |
+| 0x43BDD0 buttonHoverSet | reclassification | button-internal element words +0x84/+0x98/+0xAC/+0xC0 (bit 2), NOT the widget state word — S1 "hilite writer" claim corrected |
+
+Parameter-audit status (C1 gate):
+- **changed & verified:** widgetStateSet (3 params), clstWidgetCtor (6), lstsWidgetCtor (6).
+- **partially audited (arg1–arg3 verified, rest deferred):** widgetInstantiate (arg5/arg6 unverified — no prototype set), windowCtor, vuuPayloadParse (B/C3 verified behavior but prototype params not all re-checked against disassembly).
+- **deferred (systematic pass pending):** remaining S1/S2 renamed functions (~150). Trigger: per-batch audit as each function is next touched; batch V final sweep. Reason for deferral: each requires its own disassembly verification; no bulk parameter naming (no evidence reuse across functions).
+
+Corrections recorded (doc 17 §16, doc 13 §3 note): state @+0x34; +0x2C is instance code;
++0x36 is a flag byte; buttonHoverSet not a state writer.

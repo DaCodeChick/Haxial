@@ -206,6 +206,16 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 - **%REZ header/record + widgetDesc layouts — code-verified (S2 B/A3)**;
   CLST/LSTS identified as list/column-list classes (S2 A3).
 - **Paint dispatch — RESOLVED (S2 B2, doc 18)**: see 5.1 item 1.
+- **C1 widget-base re-audit (2026-11-21, doc 17 §16)** — state word is
+  u16 @+0x34 (S1 "+0x0D" WRONG, artifact of the same pointer-display
+  misread); bit 0x01 one-way-clearable via widgetStateSet; +0x2C =
+  instance code (not class code); +0x36 = real flag byte; buttonHoverSet
+  manages button-internal element words, not the widget state. New open
+  items: (a) widget-level hilite (state bit 0x02) writer — untraced;
+  (b) detach counterpart of [parentClass+0x88] attach (suspect +0x8C);
+  (c) list-widget dtor: verify listView/listModel ownership release;
+  (d) widgetInstantiate arg5/arg6 usage; (e) exact byte-permutation of
+  stored instCode/flags at +0x2C/+0x30 (consumer-side).
 - **Owner-approved Rust workspace architecture — RECORDED (2026-11-21)**:
   `docs/architecture/rust-workspace.md` (haxial-core contracts crate,
   backend crates wgpu/sdl/win32, haxial-ui public crate with optional
