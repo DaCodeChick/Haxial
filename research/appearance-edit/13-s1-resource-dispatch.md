@@ -94,16 +94,22 @@ byte length is not yet decoded; the editor's .fnt font files feed this path
 
 ## 3. Widget state machine (CONFIRMED) — **state address SUPERSEDED by S2 C1**
 
-> **CORRECTION (S2 C1, 2026-11-21 — doc 17 §16.1):** the state word is the
-> `ushort` at **widget+0x34**, not +0x0D. `buttonHoverSet` (0x43BDD0) does
-> not write the widget state word — it manages four button-internal element
-> words (+0x84/+0x98/+0xAC/+0xC0). Bit semantics: 0x01 active (set at
-> instantiation `(descMode&0x18)|1`; stateSet can only clear it), 0x02
-> hilited (widget-level writer untraced), 0x08 visible (kntrPaint filter),
-> 0x10/0x20 mode bits (descriptor/ctor-derived). Notification path
-> `class = [widget+0x04]; notify = [class+0x5C]; notify(new, old, widget)`
-> was correct in S1 and stands. The code block below is kept for the record
-> with the wrong offset flagged.
+> **CORRECTION (S2 C1 + Batch D, 2026-11-21 — doc 17 §16.1):** the state
+> word is the `ushort` at **widget+0x34**, not +0x0D (S1's historical
+> description is **superseded**). `buttonHoverSet` (0x43BDD0) does not
+> write the widget state word — it manages four button-internal element
+> words (+0x84/+0x98/+0xAC/+0xC0). Corrected bit map (bit numbers):
+> 0x01 = bit 0 active (set at instantiation `(mode&0x18)|1`; stateSet can
+> only clear it); 0x02 = bit 1 hilited (widget-level writer untraced);
+> 0x08 = bit 3 visible (kntrPaint filter; from descriptor mode bit 3);
+> 0x10 = bit 4 enabled (from descriptor mode bit 4 — the prvw disabled
+> pairs clear it); 0x20 = bit 5 (OR'd by CLST/LSTS ctors after init;
+> consumer pending). The S1 "0x20 = disabled" interpretation does NOT
+> apply to the widget state word (disabled = absence of 0x10, pending
+> painter confirmation). Notification path `class = [widget+0x04];
+> notify = [class+0x5C]; notify(new, old, widget)` was correct in S1 and
+> stands. The code block below is kept for the record with the wrong
+> offset flagged.
 
 `widgetStateSet` (0x4093E0):
 
@@ -129,7 +135,7 @@ State bits (writer + consumer evidence):
 |---|---|---|
 | 0x01 | pressed/active variant | `bmpStateIconDraw` icon +1 offset; constraint "no bit1 → no bit0" |
 | 0x02 | **hilited (hovered)** | `buttonHoverSet` (0x43BDD0) sets/clears bit 2 in per-element words; icon +2 offset |
-| 0x20 | **disabled** | `bmpStateIconDraw` selects bank B (slots 21–23) |
+| 0x20 | ~~**disabled**~~ | S1 claim — see correction note above: in the corrected state word the disabled selector is the absence of 0x10; `bmpStateIconDraw` bank-B selection bit to be re-verified in D |
 
 `buttonHoverSet` also shows the **button widget object layout**: rect
 `+0x2C..+0x38` (x, y, right, bottom), text obj `+0x7C`, per-element state

@@ -754,8 +754,9 @@ Per record:
 1. classObj = widgetClassLookup(bswap(desc+0)); NULL → hError(0x10017,0x56,0xA6).
 2. widget = memAllocZeroed(max(classObj+0x08, 0x38)); `+0x00` = magic
    0x5655d881; `+0x04` = **classObj** (NOT desc); `+0x08` = parent.
-3. Raw geometry u16BE desc+0x04..+0x0B → `+0x0C..+0x17` (i16);
-   scaleQuad → `+0x1C..+0x27`.
+3. Raw geometry u16BE desc+0x04..+0x0B → `+0x0C..+0x1B` (4 × sign-
+   extended i32; LE-load + swap idiom, Batch D raw-bytes-verified);
+   scaleQuad → `+0x1C..+0x27` (4 × i32).
 4. `+0x2C` = bswap(desc+0x0C) **instance code**; `+0x30` = bswap(desc+0x10)
    flags; `+0x34` = (mode & 0x18) | 1 (mode = u16BE desc+0x20, swapped);
    `+0x37` = desc+0x23 (b23).
@@ -892,6 +893,8 @@ return 1
   at **+0x34** (widgetBase.state), shared with the instantiation-time
   `(descMode & 0x18) | 1` value (§15.1) and the paint-visibility filter
   (kntrPaint checks child+0x34 & 0x08 — B2).
+- **Bit numbering:** 0x08 = bit 3, 0x10 = bit 4, 0x18 = bits 3+4,
+  0x20 = bit 5.
 - **Bit 0 (0x01) "active":** set at instantiation (`(mode&0x18)|1`);
   `widgetStateSet` may clear it but never set it (one-way).
 - **Bit 1 (0x02) "hilited":** S1's `buttonHoverSet` (0x43BDD0) does NOT
@@ -899,27 +902,46 @@ return 1
   per-element words (+0x84/+0x98/+0xAC/+0xC0 of the button object,
   confirmed by disassembly). The widget-level hilite writer remains
   untraced (open).
-- **Bit 3 (0x08) "visible":** kntrPaint child filter (B2).
-- **Bits 4–5 (0x18):** from descriptor mode (instantiation).
-- **0x20 (bit 5):** settable; CLST/LSTS ctors OR 0x20 in after init.
+- **Bit 3 (0x08) "visible":** kntrPaint child filter (B2); set from
+  descriptor mode bit 3 — all prvw preview widgets carry 0x08.
+- **Bit 4 (0x10) "enabled":** set from descriptor mode bit 4. File
+  evidence (prvw raw bytes): the enabled preview records store mode bytes
+  [00][1A] → i16BE 0x1A → state 0x19 (0x01|0x08|0x10); the disabled pair
+  records store [00][0A] → 0x0A → state 0x01. So the S1 "0x20 = disabled"
+  reading does NOT apply to the widget state word: the disabled selector
+  is the *absence* of bit 0x10 (pending painter-side confirmation in D).
+- **Bit 5 (0x20):** CLST/LSTS ctors OR 0x20 into state after init
+  (0x4216D0/0x420B10); semantics pending a consumer trace (D). No %VUU
+  descriptor path sets it (0x18 mask).
+- **Mode decode (Batch D, raw-bytes-verified):** desc+0x20 is u16BE in the
+  file; the code LE-loads the word then byte-swaps it via the
+  `SHL 8 | SAR 8 | OR | MOVZX WORD` idiom (the same idiom the four
+  geometry fields use for i16BE) — i.e. a u16BE decode with i16
+  sign-extension. The C3 "mode = u16BE, swapped" was correct; the interim
+  §16.2 "raw LE, no swap" reading was an instruction-misdecode (shift
+  count 0x18 = 24, not 18).
 - Notification = `[class+0x5C]` = widgetClassObj.stateNotifyFn ✓ (consistent
   with the corrected layout; S1's "(widget+4) vtable+0x5C" reading of the
   code was right about the path, wrong about the state address).
 
 ### 16.2 `widgetInstantiate` (0x408750) — field sources confirmed
 
-arg mapping: (desc, parent, bufLen, …). Verified writes:
+Arg mapping (corrected Batch D — matches §15.1): **(parent, desc,
+totalSubtreeBytes, arg4, windowObj, instTable, instCount, sizeOut)**.
+parent = [EBP+8] (magic-checked, attach path), desc = [EBP+0xC],
+totalSubtreeBytes = [EBP+0x10] (≥ 0x28; end = desc + arg3). Verified
+writes:
 
 | widget offset | source | form |
 |---|---|---|
 | +0x00 | constant | 0x5655D881 |
 | +0x04 | classTableLookup(bswap32(desc+0x00)) via 0x409150 | ptr (set by outer flow after ctor) |
-| +0x08 | parent (arg2, magic-checked 0x5655D881) | ptr |
-| +0x0C..+0x1B | desc+0x04..+0x0B | 4 × i16BE sign-extended to int |
+| +0x08 | parent (arg1, magic-checked 0x5655D881) | ptr |
+| +0x0C..+0x1B | desc+0x04..+0x0B | 4 × i16BE decoded (LE load + swap idiom), sign-extended to int32 each |
 | +0x1C..+0x27 | scaleQuad (0x429C70) over the raw quad | 4 × int |
-| +0x2C | desc+0x0C (instance 4cc) | byte-permuted u32 (permutation consumer-side, unverified) |
-| +0x30 | desc+0x10 (flags u32BE) | byte-permuted u32 |
-| +0x34 | (i16(desc+0x20) & 0x18) \| 1 | u16 state |
+| +0x2C | desc+0x0C (instance 4cc) | **bswap32** (raw-bytes-verified; = code-constant form, same convention as class tags) |
+| +0x30 | desc+0x10 (flags u32BE) | **bswap32** (same idiom) |
+| +0x34 | (i16(u16BE(desc+0x20)) & 0x18) \| 1 | u16 state (BE decode idiom, raw-bytes-verified) |
 | +0x37 | desc+0x23 | byte |
 
 Allocation = max(classObj+0x08, 0x38). Bounds: desc+0x28+round4(desc+0x14)

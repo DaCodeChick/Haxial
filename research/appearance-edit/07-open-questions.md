@@ -206,16 +206,27 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
 - **%REZ header/record + widgetDesc layouts — code-verified (S2 B/A3)**;
   CLST/LSTS identified as list/column-list classes (S2 A3).
 - **Paint dispatch — RESOLVED (S2 B2, doc 18)**: see 5.1 item 1.
-- **C1 widget-base re-audit (2026-11-21, doc 17 §16)** — state word is
-  u16 @+0x34 (S1 "+0x0D" WRONG, artifact of the same pointer-display
-  misread); bit 0x01 one-way-clearable via widgetStateSet; +0x2C =
-  instance code (not class code); +0x36 = real flag byte; buttonHoverSet
-  manages button-internal element words, not the widget state. New open
-  items: (a) widget-level hilite (state bit 0x02) writer — untraced;
+- **C1 widget-base re-audit (2026-11-21, doc 17 §16; Batch D 2026-11-22)** —
+  state word is u16 @+0x34 (S1 "+0x0D" **superseded**; artifact of the
+  same pointer-display misread); bit 0x01 one-way-clearable via
+  widgetStateSet; +0x2C = instance code, +0x30 = flags, **both stored
+  bswap32** (raw-bytes-verified 2026-11-22 — resolves old open item (e);
+  same convention as class tags); descriptor mode is **u16BE** decoded via
+  the LE-load + `SHL 8 | SAR 8 | OR | MOVZX WORD` swap idiom (same idiom
+  as the four geometry i16BE fields; resolves the interim §16.2 "raw LE"
+  misdecode — shift count 0x18 = 24); widgetInstantiate arg order is
+  (parent, desc, totalSubtreeBytes, arg4, windowObj, instTable, instCount,
+  sizeOut) per §15.1 — interim §16.2 "(desc, parent, bufLen)" corrected.
+  State bit map: 0x01 active (bit 0), 0x02 hilited (bit 1, writer
+  untraced), 0x08 visible (bit 3, kntrPaint filter), 0x10 enabled (bit 4,
+  prvw disabled pairs clear it), 0x20 (bit 5, OR'd by CLST/LSTS ctors,
+  consumer pending). buttonHoverSet manages button-internal element words,
+  not the widget state. Still open: (a) widget-level hilite (0x02) writer;
   (b) detach counterpart of [parentClass+0x88] attach (suspect +0x8C);
   (c) list-widget dtor: verify listView/listModel ownership release;
-  (d) widgetInstantiate arg5/arg6 usage; (e) exact byte-permutation of
-  stored instCode/flags at +0x2C/+0x30 (consumer-side).
+  (d) widgetInstantiate arg4/arg5-arg8 exact roles (arg5-8 = windowObj/
+  instTable/instCount/sizeOut per §15.1 instance-registration step, to be
+  re-verified against a call site).
 - **Owner-approved Rust workspace architecture — RECORDED (2026-11-21)**:
   `docs/architecture/rust-workspace.md` (haxial-core contracts crate,
   backend crates wgpu/sdl/win32, haxial-ui public crate with optional
