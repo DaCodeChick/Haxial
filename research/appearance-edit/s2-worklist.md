@@ -344,19 +344,56 @@ reconstruct the enclosing records, not just the FourCC pairs.
   Ledger C3 section written. Doc 17 §15 written; §14 updated.
 
 ### In progress
-- **B2 remainder (%MNU item decode)** — menuPayloadParse (0x412060) field
-  layout via the 3 built-in menus (exam 0x45F900, fsit 0x45FB18, scal
-  0x4602A8). Paint-dispatch half of B2 is **COMPLETE** (doc 18, committed
-  below): WM_PAINT → slot 0 labelPaint → [rootChildClass+0x1C] recursion;
-  14-slot pv method table decoded; 26 fns + 7 globals renamed, 28 comments,
-  15 prototypes, all verified.
+- **C1 (enrichment gate)** — per-function parameter/local audit; widgetBase
+  re-verification; widgetStateSet re-audit vs corrected layout; class ctor
+  params (incl. CLST/LSTS); list model/view ownership; container child
+  storage; parent attach/detach; editor-side vs toolkit object distinction.
+  (B2 remainder completed 2026-11-21 — see below.)
 
 ### Pending
-- C1 (enrichment gate incl. list-widget ctor params), D (geometry: scrollbar/
-  slider part tables 0x45F6xx/0x45F0xx consumers), E (resources: D roles,
-  E icons, ink objects, blob-B assembly 0x466DD4, gOncePtr 0x46698C→0x47B324),
-  F (font/text), G (C-blob field0/2/4 + secondary modes), V (validation: 5
-  remaining screenshots, docs 18–21, final audit + commit).
+- D (geometry: scrollbar/slider part tables 0x45F6xx/0x45F0xx consumers),
+  E (resources: D roles, E icons, ink objects, blob-B assembly 0x466DD4,
+  gOncePtr 0x46698C→0x47B324), F (font/text), G (C-blob field0/2/4 +
+  secondary modes), V (validation: 5 remaining screenshots, docs 19–21,
+  final audit + commit).
+
+### Completed — B2 remainder: %MNU menu subsystem (2026-11-21)
+- **Format fully reconstructed (doc 17 §8, SUPERSEDES preliminary table):**
+  header 0x28B (magic/version/nameLen/b7/style@+0x1C/field5c@+0x20/count@+0x24;
+  hdrSize=(b7+nameLen+0x2B)&~3); item size=(b36+b37+iconLen+tlen+0x3B)&~3 with
+  id@+0, value2@+4, flags=(flagsHi@+9<<16)|u16BE@+0x1A, iconIndex@+0xC,
+  accel u16BE@+0x18, b21@+0x21, b23@+0x22, tlen@+0x34, iconLen@+0x35, title
+  @+0x38[tlen], icon[tail]. Every offset re-derived from raw disassembly
+  (decompiler uint* display was misleading); blob = 0x1A fixed + leading-len
+  pstr title @+0x18 + leading-len pstr icon.
+- **flags24 semantics CONFIRMED** via menuRowClickDispatch/menuRowToggle/
+  menuInsertSeparatorAt: 0x20000 tick (toggle), 0x40000 disabled, 0x50000
+  separator (static 0x10000 + disabled), 0x80000 static (no dispatch),
+  0x100000 icon (from iconIndex), 0x140000 icon+disabled.
+- **Corpus walk EXACT** (tools/research/mnu_walk.py, txt+json inventories in
+  data/): exam 7 items (demo menu: accel 'X', icon items iconIndex 0x0A,
+  separator, ticked), fsit 28 (MIME-type picker for efik "typm" BPMN), scal
+  12 (scale options "½ 0.25"…"½ 3.00"; value2 = opaque command codes).
+  47 items, zero leftover bytes.
+- **BPMN→%MNU association CLOSED:** BPMN payload {refA, refB, w2}; refA=0 →
+  empty menu (style=refB) filled by app code (docMenuBuild etc.), refA≠0 →
+  menuCreateFromBuiltIn(refA) — all 9 BPMN nodes mapped (PE-verified);
+  **"exam" is unreferenced by this build** (developer sample, PROBABLE).
+- **menuObj (0xA4B) map completed:** magic/surface+0x04/model+0x08/arr+0x0C/
+  cnt+0x10/cmdHandler+0x18/cmdCtx+0x1C/selCallback+0x20/ctx+0x24/cursorLo+0x3C/
+  **style u16 @+0x50** (bit 2 = selection-list mode)/namePstr+0x58/
+  **selCursor+0x5C (initialized from header field5c)**/rowSize+0x60/menu2+0x68
+  (recursive destroy)/cursorHi+0x6C/subObj+0x80.
+- **Full lifecycle chain confirmed:** BPMN press (bpmnEventPress) →
+  bpmnMenuShow → popupMenuShow → row click → menuRowClickDispatch →
+  toggle/select → (style&2) menuSelCallbackInvoke → bpmnSelectionNotify →
+  widgetRefresh; (style 1) cmdHandler bpmnMenuCmdHandler → widgetMsgBubble
+  (class+0x9C). Destroy: menuDestroy recursive.
+- **Ghidra:** 33 function renames, 9 prototypes, 15 comments, 5 structs
+  (mnuHeader/mnuItemRec/menuItemBlob/menuObj/mbarSubObj) + widgetClassObj
+  extended to 180B, 6 data applications — all read-back verified. Ledger
+  section written. Note: Ghidra hexdump tool returned corrupted reads for
+  some addresses this session; PE-file reads are authoritative.
 
 ### Completed — A2 (string re-audit + class tag discovery, 2026-11-20)
 

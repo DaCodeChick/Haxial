@@ -78,7 +78,7 @@ def load_sections(path):
         secs.append((va, raw, vsize))
     return secs, d
 
-def walk(name, va, size, secs, data):
+def walk(name, va, size, secs, data, quiet=False):
     base = va_to_raw(secs, va)
     p = base
     magic = data[p:p+4]
@@ -90,16 +90,22 @@ def walk(name, va, size, secs, data):
     style = struct.unpack_from(">I", data, p+0x1C)[0]
     f5c = struct.unpack_from(">I", data, p+0x20)[0]
     count = struct.unpack_from(">I", data, p+0x24)[0]
-    print(f"== {name} @0x{va:06X} size=0x{size:X} hdr=0x{hdr:X} v={version} "
-          f"nameLen={nameLen} b7={b7} style={style} f5c=0x{f5c:08X} count={count}")
+    if not quiet:
+        print(f"== {name} @0x{va:06X} size=0x{size:X} hdr=0x{hdr:X} v={version} "
+              f"nameLen={nameLen} b7={b7} style={style} f5c=0x{f5c:08X} count={count}")
+    rec = {"name": name, "va": va, "size": size, "hdr": hdr, "version": version,
+           "nameLen": nameLen, "b7": b7, "style": style, "f5c": f5c, "count": count,
+           "items": []}
     if nameLen:
-        print(f"   name = {data[p+0x29:p+0x29+nameLen]!r}")
+        rec["name_pstr"] = data[p+0x29:p+0x29+nameLen].decode("latin-1")
+        if not quiet:
+            print(f"   name = {rec['name_pstr']!r}")
     q = p + hdr
     end = p + size
     ok = True
     for i in range(count):
         if q + 0x38 > end:
-            print(f"   [FAIL] item {i}: prefix overruns payload")
+            if not quiet: print(f"   [FAIL] item {i}: prefix overruns payload")
             ok = False
             break
         rid = struct.unpack_from(">I", data, q)[0]
@@ -116,35 +122,42 @@ def walk(name, va, size, secs, data):
         b37 = data[q+0x37]
         sz = (b36 + b37 + iconLen + tlen + 0x3B) & ~3
         if q + sz > end:
-            print(f"   [FAIL] item {i}: size 0x{sz:X} overruns payload (end 0x{end-q:X})")
+            if not quiet: print(f"   [FAIL] item {i}: size 0x{sz:X} overruns payload (end 0x{end-q:X})")
             ok = False
             break
         title = data[q+0x38:q+0x38+tlen]
         icon = data[q+0x38+tlen:q+0x38+tlen+iconLen]
         flags = (flagsHi << 16) | flagsLo
-        def s(b):
-            try:
-                return b.split(b"\0", 1)[0].decode("ascii", "replace")
-            except Exception:
-                return repr(b)
-        print(f"   item {i:2d} @+0x{q-base:04X} size=0x{sz:02X} id=0x{rid:08X} "
-              f"v2=0x{value2:08X} flags=0x{flags:06X} f10=0x{field10:08X} "
-              f"accel=0x{accel:04X} b21=0x{b21:02X} b23=0x{b23:02X} "
-              f"tlen={tlen} iconLen={iconLen} b36={b36} b37={b37}")
-        if title:
-            print(f"            title={s(title)!r}")
-        if icon:
-            print(f"            icon={icon.hex()}")
+        it = {"index": i, "off": q - base, "size": sz, "id": rid, "value2": value2,
+              "flags": flags, "field10": field10, "accel": accel, "b21": b21, "b23": b23,
+              "tlen": tlen, "iconLen": iconLen, "b36": b36, "b37": b37,
+              "title": title.split(b"\0", 1)[0].decode("latin-1"),
+              "icon": icon.hex() if icon else None}
+        rec["items"].append(it)
+        if not quiet:
+            print(f"   item {i:2d} @+0x{q-base:04X} size=0x{sz:02X} id=0x{rid:08X} "
+                  f"v2=0x{value2:08X} flags=0x{flags:06X} f10=0x{field10:08X} "
+                  f"accel=0x{accel:04X} b21=0x{b21:02X} b23=0x{b23:02X} "
+                  f"tlen={tlen} iconLen={iconLen} b36={b36} b37={b37}")
+            if title:
+                print(f"            title={it['title']!r}")
+            if icon:
+                print(f"            icon={icon.hex()}")
         q += sz
-    leftover = end - q
-    print(f"   walk {'EXACT' if leftover == 0 else 'MISMATCH'} (leftover={leftover} bytes)")
-    return ok
+    rec["leftover"] = end - q
+    rec["exact"] = (end - q) == 0 and ok
+    if not quiet:
+        print(f"   walk {'EXACT' if rec['exact'] else 'MISMATCH'} (leftover={end-q} bytes)")
+    return rec
 
 def main():
+    import json
+    mode = sys.argv[1] if len(sys.argv) > 1 else "txt"
     secs, data = load_sections(EXE)
-    allok = True
-    for (n, va, sz) in MENUS:
-        allok &= walk(n, va, sz, secs, data)
+    recs = [walk(n, va, sz, secs, data, quiet=(mode == "json")) for (n, va, sz) in MENUS]
+    if mode == "json":
+        print(json.dumps({"exe": EXE, "menus": recs}, indent=1))
+    allok = all(r["exact"] for r in recs)
     sys.exit(0 if allok else 1)
 
 if __name__ == "__main__":

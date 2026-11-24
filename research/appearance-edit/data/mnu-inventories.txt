@@ -1,0 +1,99 @@
+== exam @0x45F900 size=0x218 hdr=0x28 v=1 nameLen=0 b7=0 style=1 f5c=0xFFFFFFFF count=7
+   item  0 @+0x0028 size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=15 iconLen=0 b36=0 b37=0
+            title='First Menu Item'
+   item  1 @+0x0070 size=0x48 id=0x00000000 v2=0x00000000 flags=0x000020 f10=0x00000000 accel=0x0058 b21=0x00 b23=0x00 tlen=16 iconLen=0 b36=0 b37=0
+            title='Second Menu Item'
+   item  2 @+0x00B8 size=0x38 id=0x00000000 v2=0x00000000 flags=0x050000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=0 iconLen=0 b36=0 b37=0
+   item  3 @+0x00F0 size=0x4C id=0x00000000 v2=0x00000000 flags=0x040000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=18 iconLen=0 b36=0 b37=0
+            title='Disabled Menu Item'
+   item  4 @+0x013C size=0x48 id=0x00000000 v2=0x00000000 flags=0x100000 f10=0x0000000A accel=0x0000 b21=0x00 b23=0x00 tlen=14 iconLen=0 b36=0 b37=0
+            title='Item With Icon'
+   item  5 @+0x0184 size=0x4C id=0x00000000 v2=0x00000000 flags=0x140000 f10=0x0000000A accel=0x0000 b21=0x00 b23=0x00 tlen=18 iconLen=0 b36=0 b37=0
+            title='Disabled With Icon'
+   item  6 @+0x01D0 size=0x48 id=0x00000000 v2=0x00000000 flags=0x020000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=16 iconLen=0 b36=0 b37=0
+            title='Ticked Menu Item'
+   walk EXACT (leftover=0 bytes)
+== fsit @0x45FB18 size=0x78C hdr=0x28 v=1 nameLen=0 b7=0 style=1 f5c=0xFFFFFFFF count=28
+   item  0 @+0x0028 size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=16 iconLen=0 b36=0 b37=0
+            title='alias/unattached'
+   item  1 @+0x0070 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=8 iconLen=0 b36=0 b37=0
+            title='archive/'
+   item  2 @+0x00B0 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=6 iconLen=0 b36=0 b37=0
+            title='audio/'
+   item  3 @+0x00F0 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='audio/mpeg'
+   item  4 @+0x0134 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=9 iconLen=0 b36=0 b37=0
+            title='audio/wav'
+   item  5 @+0x0178 size=0x3C id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=4 iconLen=0 b36=0 b37=0
+            title='data'
+   item  6 @+0x01B4 size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=14 iconLen=0 b36=0 b37=0
+            title='data/truncated'
+   item  7 @+0x01FC size=0x4C id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=18 iconLen=0 b36=0 b37=0
+            title='executable/program'
+   item  8 @+0x0248 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='folder/'
+   item  9 @+0x0288 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=12 iconLen=0 b36=0 b37=0
+            title='folder/audio'
+   item 10 @+0x02CC size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=14 iconLen=0 b36=0 b37=0
+            title='folder/dropbox'
+   item 11 @+0x0314 size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=13 iconLen=0 b36=0 b37=0
+            title='folder/images'
+   item 12 @+0x035C size=0x48 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=14 iconLen=0 b36=0 b37=0
+            title='folder/uploads'
+   item 13 @+0x03A4 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=5 iconLen=0 b36=0 b37=0
+            title='font/'
+   item 14 @+0x03E4 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=6 iconLen=0 b36=0 b37=0
+            title='image/'
+   item 15 @+0x0424 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=9 iconLen=0 b36=0 b37=0
+            title='image/gif'
+   item 16 @+0x0468 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='image/jpeg'
+   item 17 @+0x04AC size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=5 iconLen=0 b36=0 b37=0
+            title='text/'
+   item 18 @+0x04EC size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=6 iconLen=0 b36=0 b37=0
+            title='video/'
+   item 19 @+0x052C size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='video/mpeg'
+   item 20 @+0x0570 size=0x40 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='volume/'
+   item 21 @+0x05B0 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=11 iconLen=0 b36=0 b37=0
+            title='volume/cart'
+   item 22 @+0x05F4 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=9 iconLen=0 b36=0 b37=0
+            title='volume/cd'
+   item 23 @+0x0638 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='volume/dvd'
+   item 24 @+0x067C size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='volume/fdd'
+   item 25 @+0x06C0 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=9 iconLen=0 b36=0 b37=0
+            title='volume/hd'
+   item 26 @+0x0704 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='volume/net'
+   item 27 @+0x0748 size=0x44 id=0x00000000 v2=0x00000000 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=10 iconLen=0 b36=0 b37=0
+            title='volume/ram'
+   walk EXACT (leftover=0 bytes)
+== scal @0x4602A8 size=0x328 hdr=0x28 v=1 nameLen=0 b7=0 style=2 f5c=0xFFFFFFFF count=12
+   item  0 @+0x0028 size=0x40 id=0x00000000 v2=0x00000014 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 0.25'
+   item  1 @+0x0068 size=0x40 id=0x00000000 v2=0x00000012 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 0.50'
+   item  2 @+0x00A8 size=0x40 id=0x00000000 v2=0x00000034 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 0.75'
+   item  3 @+0x00E8 size=0x40 id=0x00000000 v2=0x00000011 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 1.00'
+   item  4 @+0x0128 size=0x40 id=0x00000000 v2=0x00000054 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 1.25'
+   item  5 @+0x0168 size=0x40 id=0x00000000 v2=0x00000032 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 1.50'
+   item  6 @+0x01A8 size=0x40 id=0x00000000 v2=0x00000074 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 1.75'
+   item  7 @+0x01E8 size=0x40 id=0x00000000 v2=0x00000021 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 2.00'
+   item  8 @+0x0228 size=0x40 id=0x00000000 v2=0x00000094 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 2.25'
+   item  9 @+0x0268 size=0x40 id=0x00000000 v2=0x00000052 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 2.50'
+   item 10 @+0x02A8 size=0x40 id=0x00000000 v2=0x000000B4 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 2.75'
+   item 11 @+0x02E8 size=0x40 id=0x00000000 v2=0x00000031 flags=0x000000 f10=0x00000000 accel=0x0000 b21=0x00 b23=0x00 tlen=7 iconLen=0 b36=0 b37=0
+            title='Ã\x97 3.00'
+   walk EXACT (leftover=0 bytes)

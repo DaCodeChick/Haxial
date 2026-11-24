@@ -361,26 +361,233 @@ confidence: CONFIRMED. The *semantic* role of `gScaleNum/gScaleDen` as
 "UI zoom" is PROBABLE (consistent with the Scale: menu and scaled layout of
 all built-in windows).
 
-## 8. `%MNU` menu payloads (offsets CONFIRMED via `menuPayloadParse` `0x412060`; field semantics open)
+## 8. `%MNU` menu payloads (B2-remainder — COMPLETE; every offset disassembly-verified, corpus walk EXACT)
 
-| Offset | Size | Meaning |
-|---|---|---|
-| +0x00 | 4 | `%MNU` |
-| +0x04 | 2 | u16BE version = 1 |
-| +0x06 | 1 | name length |
-| +0x07 | 1 | b7 |
-| — | — | header size = `round4(nameLen + b7 + 0x2B)` |
-| +0x1C | 4 | u32BE style → 3rd arg of the menu ctor `FUN_0040FB90` |
-| +0x20 | 4 | u32BE → `menuObj+0x5C` |
-| +0x24 | 4 | u32BE item count (capped 0x400) |
-| +0x28 | … | pstr menu name (len = nameLen) |
-| … | — | **items[]**, each ≥ 0x38 B: `+0x00 u32BE type`, `+0x04 u32BE id`, `+0x08 u16BE → +0x0C`, `+0x0C u32BE → +0x10`, `+0x18 u16BE → +0x14`, `+0x21 byte → +0x16`, `+0x22 byte → +0x17`, `+0x34 byte titleLen`, `+0x38 pstr title`, then pstr icon (len byte at item+0x55); item size = `round4(b37 + b36 + iconLen + 0x3B + titleLen)` |
+**SUPERSEDES** the preliminary §8 table (2026-11-21). The preliminary text
+misidentified item `+0x00`/`+0x04` (they are `id`/`value2`, both 0 in the
+corpus), located the icon length at item+0x55 (wrong: icon is a trailing
+pstr inside the blob, and in the file `iconLen` is a plain byte at +0x35),
+and read the `scal` titles as "u16 percentage values" (wrong: `value2`
+carries opaque app command codes; the titles are fraction-glyph + scale
+strings). All field offsets below were re-derived from the raw disassembly
+of `menuPayloadParse` (0x412060, body blocks 0x4121F0–0x4123F1) because the
+decompiler's `uint*` typing of the item pointer misdisplays byte offsets.
 
-Items are appended to `menuObj+0x0C` via `0x440790`; post-processing
-`FUN_00423210`, `FUN_0040FCC0`. The `scal` menu contains "Scale:" items with
-u16 percentage values (visible in payload at `0x4602A8+`). **The exact
-meaning of item fields 0x00/0x04/0x08/0x0C is HYPOTHESIS** (type selector /
-command id / state / arg) — needs a menu-item activation trace (Batch B2).
+### 8.1 Header (fixed 0x28 B when nameLen=0; CONFIRMED)
+
+```
++0x00  4B   magic "%MNU" (25 4D 4E 55; code checks bswap32(load) == 0x254D4E55)
++0x04  2B   u16BE version (must be 1)
++0x06  1B   nameLen          (byte count of name pstr data)
++0x07  1B   b7               (reserved; 0 in corpus)
++0x08  16B  reserved (zero in corpus)
++0x1C  4B   u32BE style      (menuObjectCtor 3rd arg: 1 = popup menu, 2 = selection list)
++0x20  4B   u32BE field5c    (menuObj+0x5C? no — passed to ctor arg slot; 0xFFFFFFFF in corpus)
++0x24  4B   u32BE itemCount  (clamped to 0x400 before array reserve)
++0x28       name pstr when nameLen > 0 (length byte + nameLen bytes)
+header size = (b7 + nameLen + 0x2B) & ~3   ; all 3 corpus menus: 0x28 (nameLen = b7 = 0)
+```
+
+When nameLen = 0 the name pstr is absent and the first item's `id` begins at
++0x28 (the item's first byte is simply 0x00 in the corpus). Note: the pstr
+length byte at +0x28 (0x00 when empty) coincidentally occupies item 0's id
+high byte — no practical effect since all ids are 0.
+
+### 8.2 Item record (disassembly-verified; size formula corpus-verified)
+
+```
+size = (b36 + b37 + iconLen + tlen + 0x3B) & ~3
+
++0x00  4B   u32BE id          (primary command id; 0 in entire corpus)
++0x04  4B   u32BE value2      (secondary id / command payload; 0 except scal menu)
++0x08  1B   pad (parser reads u16LE @+0x08 but uses only high byte)
++0x09  1B   flagsHi           (<<16: top byte of the 24-bit item flags)
++0x0C  4B   u32BE iconIndex   (blob+0x10 → cell+0x14 → row painter; 0 except icon items)
++0x10  8B   not read by parser (zero in corpus; 00 20 58 00 pattern in one exam item)
++0x18  2B   u16BE accel       (accelerator; exam item 1 = 0x0058 'X')
++0x1A  2B   u16BE flagsLo     (low 16 bits of the 24-bit flags)
++0x1C  16B  not read by parser (zero in corpus except one 0x20/0x58 pair)
++0x21  1B   b21               (blob+0x16; 0 in corpus)
++0x22  1B   b22               (low byte of u16LE @+0x22 → blob+0x17; 0 in corpus)
++0x24  8B   not read by parser
++0x34  1B   tlen              (title byte count — AUTHORITATIVE, pstr rule)
++0x35  1B   iconLen           (icon byte count; 0 in corpus — icons are INDEXED, not embedded)
++0x36  1B   b36               (0 in corpus; semantics unknown)
++0x37  1B   b37               (0 in corpus; semantics unknown)
++0x38       title [tlen]      (raw bytes, NUL not required; lengths authoritative)
++0x38+tlen  icon [iconLen]    (raw bytes; 0 in corpus)
+```
+
+flags24 = (flagsHi << 16) | flagsLo. Observed values and their runtime
+consumers (`menuRowClickDispatch` 0x40FAA0, `menuInsertSeparatorAt` 0x411410):
+
+| flags24 | meaning (CONFIRMED by dispatch code) |
+|---|---|
+| 0x00000 | normal selectable item |
+| 0x00200 | (exam item 1 only; low-bit semantics UNKNOWN) |
+| 0x20000 | tickable — click toggles checked state (`menuRowToggle` 0x411880) |
+| 0x40000 | disabled — no dispatch, dimmed rendering |
+| 0x50000 | separator (static 0x10000 + disabled 0x40000; matches runtime separator builder which hard-codes 0x50000) |
+| 0x80000 | static label — never dispatches (blocks both toggle and select) |
+| 0x100000 | has icon — icon drawn from iconIndex |
+| 0x140000 | icon + disabled |
+
+The 0x10000 bit ("static") only appears in the corpus combined with
+0x40000 (separators); a lone 0x10000 is not observed.
+
+### 8.3 Runtime item blob (CONFIRMED via `menuInsertItem` 0x411120 + parse disassembly)
+
+```
+blob = memAllocZeroed(0x1A + tlen + iconLen)
++0x00  4B   pad (zero)
++0x04  4B   id
++0x08  4B   value2
++0x0C  4B   flags24 & 0xFFFFFF
++0x10  4B   iconIndex
++0x14  2B   accel
++0x16  1B   b21
++0x17  1B   b23 (low byte of file word @+0x22)
++0x18  1B   titleLen  (LEADING length byte — Haxial pstr variant)
++0x19       title [tlen]
++0x19+tlen  1B iconLen (leading length byte)
++0x1A+tlen  icon [iconLen]
+```
+
+Blobs are stored in `menuObj+0x0C` (ptrArray), one 16-byte row each in the
+`listModel` (rowSize byte at menuObj+0x60; 0x10 in the menu path). Separator
+blobs are 0x1A B with flags24 = 0x50000 and no title (hard-coded in
+`menuInsertSeparatorAt`, matching file items with flagsHi = 0x05).
+
+### 8.4 Menu object `menuObj` (0xA4 B; CONFIRMED via destructor, parse, insert, select/toggle, callback code)
+
+```
++0x00  4B   magic 0x51BD8891
++0x04  4B   surfaceObj (hapTextObj* of the popup surface; NULL until shown;
+                       destroyed by 0x40C270; menuItemDtor invalidates its rows)
++0x08  4B   listModel (listModelCtor 0x422EB0; magic 0x8521B2D1; 16 B rows)
++0x0C  4B   itemArray (blob*; reserved to count via ptrArrayReserve 0x4407E0)
++0x10  4B   itemCnt
++0x18  4B   cmdHandler (set by menuCreateFromBuiltIn; = bpmnMenuCmdHandler 0x436160 for BPMN menus)
++0x1C  4B   cmdCtx (owner widget for BPMN menus)
++0x20  4B   selCallback (code*; set by menuSetSelectionCallback 0x411E80;
+                       BPMN menus register bpmnSelectionNotify 0x4361D0 with the widget as ctx)
++0x24  4B   selCallbackCtx
++0x3C  4B   cursorLo (u32, -1; insert-adjusted; second consumer not yet traced)
++0x50  2B   style (u16, from header +0x1C; bit 1 (value 2) = selection-list mode —
+                       menuRowSelect invokes selCallback only when style & 2)
++0x58  4B   namePstr (header name when nameLen > 0; memFree'd in menuDestroy)
++0x5C  4B   selCursor (u32; INITIALIZED FROM HEADER field5c — corpus 0xFFFFFFFF = none;
+                       written by menuRowSelect, insert-adjusted)
++0x60  1B   rowSize (0x10)
++0x61  1B   f61 (set 1 after parse/insert; purpose unknown)
++0x68  4B   menu2 (second/linked menu — menuDestroy 0x40FCC0 recurses here;
+             no file-level nesting: %MNU carries one menu per record)
++0x6C  4B   cursorHi (u32, -1; insert-adjusted; role vs selCursor unknown)
++0x80  4B   subObj (freed by 0x41C600 in menuDestroy; popup window object? PROBABLE)
+```
+
+Note on header `field5c` (+0x20): the parse stores `bswap32(header+0x20)` into
+menuObj+0x5C — so the header field IS the initial selection cursor (all corpus
+menus use 0xFFFFFFFF = no initial selection). The §8.1 table's "field5c"
+naming is kept for the on-disk field; its runtime identity is selCursor.
+
+### 8.5 Corpus validation (tools/research/mnu_walk.py — EXACT, leftover = 0)
+
+| menu | VA | size | style | items | inventory |
+|---|---|---|---|---|---|
+| exam | 0x45F900 | 0x218 | 1 | 7 | demo: First/Second Menu Item (accel 'X'), separator, Disabled, Item With Icon (iconIndex 0x0A), Disabled With Icon, Ticked |
+| fsit | 0x45FB18 | 0x78C | 1 | 28 | MIME-type paths for the file-icon editor: alias/unattached, archive/, audio/{,mpeg,wav}, data{,/truncated}, executable/program, folder/{,audio,dropbox,images,uploads}, font/, image/{,gif,jpeg}, text/, video/{,mpeg}, volume/{,cart,cd,dvd,fdd,hd,net,ram} |
+| scal | 0x4602A8 | 0x328 | 2 | 12 | scale options "½ 0.25" … "½ 3.00" (fraction glyphs 0xBC/0xBD/0xBE in cp1252; 0x98 byte for the remaining labels); value2 = opaque command codes 0x11..0xB4 |
+
+All three menus walk byte-exact: 47 items total, correct counts, correct
+titles, no overreads, zero trailing bytes. Structural validation ✓.
+Semantic validation: field roles above are consumer-traced (CONFIRMED for
+flags/id/value2/accel/iconIndex/title); b21/b23/b36/b37/the +0x10..+0x17 and
++0x1C..+0x33 item regions, `field5c`, `f61`, `cursorLo/Hi` and `menu2` roles
+remain UNKNOWN/PROBABLE as marked.
+
+### 8.6 BPMN → %MNU association (CONFIRMED; closes the C3 open question)
+
+BPMN payload (12 B) = `{u32BE refA, u32BE refB, u32BE w2}`:
+- `refA == 0` → `menuObjectCtor(bpmnMenuCmdHandler, widget, style = refB)` —
+  empty runtime menu filled by application code.
+- `refA != 0` → `menuCreateFromBuiltIn(handler, widget, refA)` — refA is the
+  %REZ record **name** (4cc stored as code constant); loader is
+  `lookupBuiltInRec(0x4D454E55 /*"MENU"*/, name, &size)` (disassembly-verified:
+  compares rec+0 and rec+4 byte-swapped; returns size u32BE @+0x0C and
+  absolute payload = offset u32BE @+0x10 + 0x45F830).
+
+All 9 BPMN nodes in the six built-in windows (PE-verified from the file
+bytes; the Ghidra hexdump tool produced corrupted reads for some addresses in
+this session — the PE reader is authoritative):
+
+| window | inst | refA | menu |
+|---|---|---|---|
+| doku | menu | 0 | empty (style 2) — File menu built by `docMenuBuild` 0x401350 (New/Open…/Import Colors…/Save/Save As…/Preview/About/Exit Appearance) |
+| doku | scal | "scal" | built-in scal (scale selector) |
+| efik | typm | "fsit" | built-in fsit (MIME-type picker for the file-icon tab) |
+| emik | trnk, invk | 0 | empty (style 2) |
+| epxm | trns, tsty | 0 | empty (style 2) |
+| prvw | pmnu, umen, mnu2 | 0 | empty (style 2) |
+
+**"exam" is referenced by nothing in this build** — no .text constant, no
+BPMN payload, no data pointer (the two .rdata hits are the English words in
+"for example: joe@example.com"). It is a developer sample menu (PROBABLE).
+No %MNU record is written by this build's save path (the v2 writer emits no
+M section — see 04 § directory slots).
+
+### 8.7 Runtime menu lifecycle (CONFIRMED chain)
+
+```
+BPMN press (classBpmn+0x20 = bpmnEventPress 0x436670):
+  event+6: 1→state|=0x40 (press), 2→|=0x80 (release), 3→|=0x100 (click)
+  if state&0x10 (menu assigned) and state&6: open or close toggle
+open  → bpmnMenuShow 0x4367A0: btn+0x36|=1, geom = btn+0x1C..+0x27,
+         0x4098A0 callback computes (dx,dy), popupMenuShow 0x410C60(menu, event, rect)
+close → bpmnMenuClose 0x436890: btn+0x36&=~1, popupMenuClose 0x410EB0(menu)
+row click → listModel cell callback menuRowClickDispatch 0x40FAA0:
+  event 1:  (flags & 0x20000) ? menuRowToggle (0x411880: flags^=0x20000)
+                             : menuRowSelect  (0x411CF0: selCursor=row, prev-row resync)
+            — both skipped for 0x80000 (static) / 0x40000 (disabled)
+  event 7:  select (if not static/disabled/tickable)
+selection → (style & 2, e.g. scal) menuRowSelect → menuSelCallbackInvoke 0x4110E0
+  → selCallback(selCallbackCtx) = bpmnSelectionNotify 0x4361D0 →
+  widgetRefresh 0x409660(widget, widget+0x1C geom); the app then reads
+  menu->selCursor → item value2 (command code) and applies it
+selection (style 1 popup) → cmdHandler (menu+0x18) = bpmnMenuCmdHandler 0x436160:
+  bpmnMenuClose; copies 0x2C-byte message from the model row (id/value2/flags…);
+  sets flag 0x1000; widgetMsgBubble 0x4097F0 → owner's class+0x9C message handler
+item removal → menuItemDtor 0x40F990 → textObjInvalidateRect 0x40CDB0(surface, rowRect)
+menuDestroy 0x40FCC0: recursive (menu2 @+0x68) → surface 0x40C270 → model
+dtor → subObj 0x41C600 → name pstr → item array → free
+```
+
+MBAR (menu-bar widget) association: `mbarWidgetInit` 0x43CD50 builds a
+0xC0 B sub-object (magic 0x455E0FD3) whose +0x38 holds a menuObj and +0x40 a
+20-slot item pointer array; `mbarPaint` 0x43CDF0 → `mbarDrawTitles` 0x42EF60
+renders the horizontal section-title bar (the "Information | Colors | Images…"
+strip; titles come from the doc's section menu built at doc+0x78 by
+docCreate/docMenuBuild). MBAR sub-callbacks 0x409660/0x4098A0 are registered
+via 0x411E80 (same registration used by BPMN for 0x4361D0).
+
+### 8.8 Ghidra enrichment (this batch — read-back verified)
+
+- Structs (program-local): `mnuHeader` 40 B, `mnuItemRec` 56 B, `menuItemBlob`
+  24 B fixed + pstr tails, `menuObj` 164 B, `mbarSubObj` 192 B; `widgetClassObj`
+  extended 144 B → 180 B (msgHandler @+0x9C now named).
+- Data applied: mnuHeader ×3 (exam_hdr/fsit_hdr/scal_hdr), mnuItemRec ×3 (item 0 of each).
+- Renames: 33 functions (menuInsertItem, menuAddItemPstr, menuInsertSeparatorAt,
+  menuAddSeparator, menuItemDtor, textObjInvalidateRect, menuItemCellRecord,
+  menuRowCellState, menuRowClickDispatch, menuRowToggle, menuRowSelect,
+  modelRowsInsert, modelRefreshRow, menuSelectHighlight, menuSelectClear,
+  menuSetSelectionCallback, menuSelCallbackInvoke, mbarDrawTitles,
+  mbarSubObjCtor, mbarWidgetInit, widgetMsgBubble, widgetRefresh,
+  bpmnMenuCmdHandler, bpmnMenuShow, bpmnMenuClose, bpmnEventPress,
+  bpmnSelectionNotify, popupMenuShow, popupMenuClose, ptrArrayReserve,
+  ptrArrayAppend, ptrArrayInsert, menuDestroy).
+- 9 prototypes, 15 function comments (menu subsystem).
+- Inventories: `data/mnu-inventories.txt` + `.json` (walk EXACT).
+
 
 ## 9. doku window tree (verified, partial — 6 records mapped of 19+ instances)
 

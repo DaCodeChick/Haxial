@@ -29,13 +29,25 @@ nine-slice runtime algorithm, painters — see §5 and docs 13–15.**
    rec+0x10): still open. **New data point:** the on-disk HAP format uses BE
    for structural fields and LE for pixel/color data — the registry's in-memory
    byte-swaps may mirror the same convention (PROBABLE, unconfirmed).
-6. Menu/window instance names → `constructApp` init mapping: still open.
-7. `0x5657494E`/"VWIN" / `0x4D454E55`/"MENU" lookup context quirk: still open.
+6. ~~Menu/window instance names → `constructApp` init mapping: still open.~~
+   **RESOLVED (S2 C3 + B2-remainder)** — instance names resolve through the
+   window instance tables (1:1 with %VUU named instances, doc 17 §15); BPMN
+   menus: payload word0 carries the %MNU record name directly (or 0 = empty
+   runtime menu filled by app builders such as docMenuBuild). Doc 17 §8.6.
+7. ~~`0x5657494E`/"VWIN" / `0x4D454E55`/"MENU" lookup context quirk: still
+   open.~~ **RESOLVED (S2 B2-remainder)** — `builtinRecCmp` (0x4457C0)
+   compares `bswap32(rec+0)`/`bswap32(rec+4)` (id and name, u32BE) against
+   the code-constant arguments; `lookupBuiltInRec` returns size (u32BE
+   @+0x0C) and absolute payload = offset (u32BE @+0x10) + 0x45F830.
+   The "quirk" is the standard three-representation FourCC convention
+   (doc 17 §4).
 8. Bitmap/color model (DIB16/24/32, `SetDIBitsToDevice` caller): **partially
    resolved** — the file-side bitmap formats are fully specified (C/E bitmaps,
    %IKN 1/2/4/8/24bpp, %MSI 2/8/32bpp); the GDI drawing path is not.
 9. 11 subsystem init functions in `constructApp`: still open.
-10. Main window WndProc (candidate `FUN_004038C0`): still open.
+10. ~~Main window WndProc (candidate `FUN_004038C0`): still open.~~
+    **RESOLVED (S2 B2, doc 18)** — Haxial window WndProc = 0x40EB50, top-level
+    WndProc = 0x40B590 (0x4038C0 was a wrong candidate).
 11. ~~Formatters `FUN_00439CC0`/`FUN_00439D00`/`FUN_0043A610`: still open.~~ **RESOLVED (S1)** — 0x43A610 = `fmtByteCount` (K/M/G/T/P/E sizes); 0x439CC0 = `fmtSignedInt` (R0-A.3).
 12. `FUN_00414BF0` terminal error handler / `FUN_00434420` record init: still
     open (note: `hapParse` error codes 0x10008/0x10009/0x1000A = bad
@@ -179,6 +191,27 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
    2/4/8) extra-row content + consumer.
 6. `gStyleStrA/B` (0x466974/7C) and `gOncePtr` (0x46698C → 0x47B324) purposes.
 7. Post-install hooks 0x40F220 / 0x41D390.
+
+## 5.2 Session S2 resolutions (2026-11-20 → 2026-11-21)
+
+- **%MNU menu format + runtime menu subsystem — RESOLVED (S2 B2-remainder,
+  doc 17 §8)**: complete header/item/blob/menuObj layouts (disassembly-
+  verified), flags24 semantics, BPMN→%MNU association for all 9 BPMN nodes,
+  full open/select/toggle/dispatch/destroy lifecycle, corpus walk EXACT for
+  all three built-in menus (47 items, zero leftover). "exam" menu is
+  unreferenced sample data. Menu command dispatch to app messages closed via
+  widgetMsgBubble → class+0x9C.
+- **%VUU window trees — RESOLVED (S2 C3, doc 17 §15)**: all six windows
+  walk exact; 209 records / 89 instances; instance tables 1:1.
+- **%REZ header/record + widgetDesc layouts — code-verified (S2 B/A3)**;
+  CLST/LSTS identified as list/column-list classes (S2 A3).
+- **Paint dispatch — RESOLVED (S2 B2, doc 18)**: see 5.1 item 1.
+- **Owner-approved Rust workspace architecture — RECORDED (2026-11-21)**:
+  `docs/architecture/rust-workspace.md` (haxial-core contracts crate,
+  backend crates wgpu/sdl/win32, haxial-ui public crate with optional
+  backend features, haxial-import → **haxial-compat** rename, no compat→
+  core dependency without demonstrated need). Design decisions, not RE
+  findings.
 
 ## 6. Next-stage plan (post-R0-A.2, 2026-11-18)
 

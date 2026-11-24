@@ -152,7 +152,7 @@ Research + Ghidra enrichment milestone (no Rust, per task scope).
 - **Correction**: 0x48Dxxx "provider vtables" (R0-A.3) are the **.idata IAT** (unbound import entries), not runtime objects; dibInfoDecode's provider calls are import API calls. Doc 16 §3.
 - Ghidra (all read-back verified): 20 function renames, 16 data renames, 19 function comments, 2 data plate comments, hapBitmapObj.fillMode→fillColor, nineSliceBlitC prototype. Docs 13–16 + 04/05/06/07/10/11 updates; `s1-worklist.md` checkpoint.
 
-## Session S2 (2026-11-19/20) — IN PROGRESS (widget record reconstruction, FourCC semantics, UI evidence closure)
+## Session S2 (2026-11-19/20/21) — IN PROGRESS (widget record reconstruction, FourCC semantics, UI evidence closure)
 
 Priority item **CLOSED**: `MENUscal` is the (type=MENU, instance=scal) record of the
 `%REZ` built-in UI registry @0x45F830 — a structured 20-byte (type4cc, instance4cc,
@@ -196,6 +196,22 @@ flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char stri
   classes (init/teardown/hasChildren/event-A/**paint +0x1C**/event-B/attach).
   S1 open item 1 resolved. 26 fn + 7 global renames, 28 comments, 15
   prototypes — all read-back verified (doc 18, new).
-- Remaining S2 batches: B2 remainder (%MNU item decode), C (enrichment gate
-  + widgetStateSet re-audit), D (geometry/part tables), E (resources/colors),
-  F (font), G (C-blob), V (validation + docs 19–21).
+- **Batch B2 remainder (2026-11-21) — %MNU CLOSED**: complete menu resource
+  format (header/item/blob/menuObj, all offsets disassembly-verified — the
+  decompiler's pointer display had misled the earlier pass), flags24 semantics
+  (0x20000 tick / 0x40000 disabled / 0x50000 separator / 0x80000 static /
+  0x100000 icon), BPMN payload {refA record-name-or-0, refB style, w2} with
+  all 9 BPMN nodes mapped ("exam" = unreferenced sample), full open/select/
+  toggle/dispatch/destroy lifecycle (bpmnEventPress → bpmnMenuShow →
+  popupMenuShow → menuRowClickDispatch → toggle/select → selCallback or
+  cmdHandler → widgetMsgBubble class+0x9C). Corpus walk EXACT: 47 items,
+  zero leftover (tools `mnu_walk.py`, inventories in data/). 33 fn renames,
+  9 prototypes, 15 comments, 5 new structs + widgetClassObj → 180 B, 6 data
+  applications — all read-back verified (doc 17 §8 rewritten).
+- **Architecture (2026-11-21)**: owner-approved Rust workspace decisions
+  recorded in `docs/architecture/rust-workspace.md` (haxial-core, backend
+  crates, haxial-ui, haxial-import → haxial-compat; design decisions, not RE
+  findings).
+- Remaining S2 batches: C (enrichment gate + widgetStateSet re-audit), D
+  (geometry/part tables), E (resources/colors), F (font), G (C-blob), V
+  (validation + docs 19–21).

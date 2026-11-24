@@ -531,3 +531,64 @@ doc 18 §8). Class-slot table (all 21 classes, +0x0C/+0x10/+0x14/+0x18/+0x1C/
 
 All read-back verified (get_function_info). 0x436160/0x4361D0 are function
 addresses (prologues verified), passed as handler/callback args — NOT data.
+
+### S2 B2-remainder — %MNU menu subsystem (2026-11-21)
+
+Renames (all read-back verified via get_function_info / decompiler output):
+
+| Address | Old | New | Kind | Evidence | Confidence |
+|---|---|---|---|---|---|
+| 0x411120 | FUN_00411120 | `menuInsertItem` | function | blob builder: id/value2/flags24/iconIndex/accel/b21/b23 + pstr title (leading len @+0x18); ptrArrayInsert @menu+0xC | CONFIRMED |
+| 0x411290 | FUN_00411290 | `menuAddItemPstr` | function | pstr-label wrapper over menuInsertItem (append) | CONFIRMED |
+| 0x411410 | FUN_00411410 | `menuInsertSeparatorAt` | function | 0x1AB blob, flags24=0x50000 hard-coded, no title; matches file items flagsHi=0x05 | CONFIRMED |
+| 0x411510 | FUN_00411510 | `menuAddSeparator` | function | append wrapper (index 0xFFFFFFFF) | CONFIRMED |
+| 0x40F990 | FUN_0040f990 | `menuItemDtor` | function | listModel element dtor → textObjInvalidateRect(surface, rowRect) | CONFIRMED |
+| 0x40CDB0 | FUN_0040cdb0 | `textObjInvalidateRect` | function | magic 0xF0168873 (hapTextObj) check; GetClientRect ∩ rect → InvalidateRect | CONFIRMED |
+| 0x40F9B0 | FUN_0040f9b0 | `menuItemCellRecord` | function | 0x28B cell: +4 title ptr (blob+0x19), +8 titleLen (blob+0x18), +0xC flags24, +0x14 iconIndex (blob+0x10), +0x26 accel — disassembly-verified | CONFIRMED |
+| 0x40FA00 | FUN_0040fa00 | `menuRowCellState` | function | listModel cell-state callback (selection/hilite/first/last flags) | CONFIRMED (role) |
+| 0x40FAA0 | FUN_0040faa0 | `menuRowClickDispatch` | function | event 1 → toggle(0x20000) else select; event 7 → select; 0x80000/0x40000 block all | CONFIRMED |
+| 0x411880 | FUN_00411880 | `menuRowToggle` | function | blob+0xC ^= 0x20000; modelRefreshRow | CONFIRMED |
+| 0x411CF0 | FUN_00411cf0 | `menuRowSelect` | function | selCursor @menu+0x5C; menuSelectHighlight/Clear; style&2 → menuSelCallbackInvoke | CONFIRMED |
+| 0x423210 | FUN_00423210 | `modelRowsInsert` | function | listModel row insert (rowSize 0x10, count, NULL rows) | CONFIRMED |
+| 0x424020 | FUN_00424020 | `modelRefreshRow` | function | called after flag flip (menuRowToggle) | PROBABLE (name) |
+| 0x4117D0 | FUN_004117d0 | `menuSelectHighlight` | function | called after selCursor set (menuRowSelect) | PROBABLE (name) |
+| 0x411920 | FUN_00411920 | `menuSelectClear` | function | called when selection cleared | PROBABLE (name) |
+| 0x411E80 | FUN_00411e80 | `menuSetSelectionCallback` | function | menu+0x20 = fn, +0x24 = ctx (magic-checked) | CONFIRMED |
+| 0x4110E0 | FUN_004110e0 | `menuSelCallbackInvoke` | function | calls menu+0x20 with menu+0x24 | CONFIRMED |
+| 0x40FCC0 | FUN_0040fcc0 | `menuDestroy` | function | recursive; surface/model/subObj/name/array frees | CONFIRMED |
+| 0x42EF60 | FUN_0042ef60 | `mbarDrawTitles` | function | MBAR horizontal title bar (itemArray @+0x40, cnt @+0x3D, sel @+0x3C) | CONFIRMED (role) |
+| 0x42E9E0 | FUN_0042e9e0 | `mbarSubObjCtor` | function | 0xC0B, magic 0x455E0FD3; menu @+0x38 | CONFIRMED |
+| 0x43CD50 | FUN_0043cd50 | `mbarWidgetInit` | function | MBAR classObj+0x0C init | CONFIRMED |
+| 0x4097F0 | FUN_004097f0 | `widgetMsgBubble` | function | msg → owner's class+0x9C handler | CONFIRMED |
+| 0x409660 | FUN_00409660 | `widgetRefresh` | function | (widget, widget+0x1C geom); used on menu open/close/selection | PROBABLE (name) |
+| 0x436160 | FUN_00436160 | `bpmnMenuCmdHandler` | function | menu cmdHandler for BPMN menus: close + 0x2C msg copy + flag 0x1000 + widgetMsgBubble | CONFIRMED |
+| 0x4361D0 | FUN_004361d0 | `bpmnSelectionNotify` | function | selCallback for BPMN menus: widgetRefresh(widget, geom) | CONFIRMED |
+| 0x4367A0 | FUN_004367a0 | `bpmnMenuShow` | function | open popup: btn+0x36\|=1, geom, 0x4098A0 offset, popupMenuShow(menu@btn+0x38) | CONFIRMED |
+| 0x436890 | FUN_00436890 | `bpmnMenuClose` | function | btn+0x36&=~1, popupMenuClose | CONFIRMED |
+| 0x436670 | FUN_00436670 | `bpmnEventPress` | function | classBpmn+0x20: press/release/click → state 0x40/0x80/0x100; open/close toggle | CONFIRMED |
+| 0x410C60 | FUN_00410c60 | `popupMenuShow` | function | (menu, eventInfo, rect, 0) — creates/shows popup window | CONFIRMED (role) |
+| 0x410EB0 | FUN_00410eb0 | `popupMenuClose` | function | called by bpmnMenuClose | CONFIRMED (role) |
+| 0x4407E0 | FUN_004407e0 | `ptrArrayReserve` | function | capacity reserve (menu+0xC, count≤0x400) | CONFIRMED |
+| 0x440790 | FUN_00440790 | `ptrArrayAppend` | function | append (item array, list array) | CONFIRMED |
+| 0x440820 | FUN_00440820 | `ptrArrayInsert` | function | insert at index | CONFIRMED |
+
+Data / types (all read-back verified via list_data_variables / get_data_type):
+
+- structs (program-local, category /): `mnuHeader` 40 B (applied ×3: exam_hdr
+  0x45F900, fsit_hdr 0x45FB18, scal_hdr 0x4602A8), `mnuItemRec` 56 B (applied ×3
+  at each menu's item 0), `menuItemBlob` 24 B fixed + pstr tails (title leading
+  len @+0x18; icon pstr after), `menuObj` 164 B (style @+0x50, selCallback
+  @+0x20, selCursor @+0x5C initialized from header field5c @+0x20), `mbarSubObj`
+  192 B (magic 0x455E0FD3, menu @+0x38, 20-slot item array @+0x40);
+  `widgetClassObj` extended 144 → 180 B (msgHandler @+0x9C named; WIND and KNTR
+  class objects use slots through +0xB0).
+- 15 function comments on the menu subsystem; 9 prototypes (menuPayloadParse,
+  menuCreateFromBuiltIn, menuDestroy, menuInsertItem, menuInsertSeparatorAt,
+  menuRowClickDispatch, bpmnWidgetInit, menuObjectCtor, modelRowsInsert).
+
+Corrections to earlier notes: menuObj style is @+0x50 (not +0x14 — earlier
+decompiler int-index display); selCallback/ctx are @+0x20/+0x24 (not +0x80/
++0x90); header field5c @+0x20 IS the initial selCursor; BPMN payload = {refA
+record-name-or-0, refB style, w2}; %MNU payload sizes are 0x218/0x78C/0x328
+(the "…B" values in session notes were misreads of the rezRec size+offset
+boundary). "exam" %MNU is unreferenced by this build (sample data, PROBABLE).
