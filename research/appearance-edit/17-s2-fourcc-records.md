@@ -300,6 +300,12 @@ thunks renamed to match: `classRegMbar @0x43CD30`, `classRegKolr @0x437220`
 0x409100`). `SLDR` was **missing** from A1's 18 — it is the 11th registered
 class (the slider; descriptors use it 10× in the prvw window).
 
+Note (2026-11-24, §18.1): class objects are in **.data** (VA 0x45F000,
+raw 0x5DA00), not .rdata. The KNTR row's "—" initFn is **0x412780
+(kntrWidgetInit)** — the §6 table predated the full 20-class table dump;
+see §18.1 for the complete method table (init/+0x10/paint/event/+0x24/
+stateNotify per class, file-bytes-verified).
+
 Registration: `widgetClassRegister` (`0x409100`) searches
 (`0x440B70`) then inserts (`0x440790`) the object pointer into the dynamic
 table `[gClassTblPtr 0x466B58] / [gClassCount 0x466B5C]`; called at startup
@@ -1159,3 +1165,217 @@ With Icon, Disabled With Icon, Ticked.)
 - 0x402280/0x401A20/0x401BB0 (prvw setup helpers) — D-late or V.
 - The `0x410EB0` (popupMenuClose) / `0x410C60` (popupMenuShow) parameter
   conventions (event struct, rect, outInfo) — D3.
+
+## 18. Batch D1+D2 — HOLD/SLDR object models, appearance part tables,
+parent messages (2026-11-24)
+
+### 18.1 Class method table — all 20 classes (CONFIRMED, file-bytes-verified)
+
+Class objects live in **.data** (VA 0x45F000, raw 0x5DA00) — NOT .rdata
+(correcting an implicit assumption from A1: .rdata spans only
+0x453000..0x45BB84). Full table (init=+0x0C, +0x10, paint=+0x1C, event=+0x20,
++0x24, stateNotify=+0x5C, size=+0x08):
+
+| class | init | +0x10 | paint(+0x1C) | event(+0x20) | +0x24 | notify(+0x5C) |
+|---|---|---|---|---|---|---|
+| VUU! 0x4660C4 | widgetInitNoop 0x409BD0 | 0x409BE0 | 0x409C00 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| WIND 0x466188 | — (all NULL) | | | | | |
+| KNTR 0x466690 | kntrWidgetInit 0x412780 | 0x412810 | 0x412980 | 0x412B30 | 0x412CE0 | 0x413450 |
+| TXTS 0x466C80 | 0x41FDE0 | 0x41FDB0 | 0x41F820 | 0x41F840 | 0x41F880 | 0x420010 |
+| LSTS 0x466D44 | widgetInitNoop | 0x421090 | 0x41F820 | 0x41F840 | 0x41F880 | 0x4210D0 |
+| CLST 0x466E08 | widgetInitNoop | 0x4218A0 | 0x41F820 | 0x41F840 | 0x41F880 | 0x4210D0 |
+| IMGS 0x466ECC | 0x422BA0 | 0x422D30 | 0x41F820 | 0x41F840 | 0x41F880 | 0x41F7C0 |
+| BUTN 0x4674A0 | 0x4352C0 | 0x435320 | 0x435350 | 0x4353B0 | 0x435420 | 0x435550 |
+| KLBL 0x467564 | 0x4357F0 | 0x435850 | 0x435870 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| LABL 0x467628 | 0x435BB0 | 0x435C30 | 0x435C60 | 0x435D10 | 0x409CB0 | 0x409DE0 |
+| BOX! 0x4676EC | 0x435FF0 | 0x436040 | 0x436070 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| SEPR 0x4677B0 | widgetInitNoop | 0x4360F0 | 0x436100 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| BPMN 0x467874 | 0x436430 | 0x436550 | 0x4365E0 | 0x436670 | 0x4370F0 | 0x436580 |
+| IKBT 0x467938 | 0x436C00 | 0x436DC0 | 0x436E60 | 0x436F10 | 0x4370F0 | 0x436DF0 |
+| KOLR 0x4679FC | 0x437240 | 0x437290 | 0x4372C0 | 0x4374D0 | 0x4376F0 | 0x437810 |
+| PRGS 0x467B84 | 0x437DA0 | 0x437E80 | 0x437E90 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| SLDR 0x467C48 | sldrWidgetInit 0x438060 | 0x438100 | sldrPaint 0x438160 | sldrEventPress 0x4381A0 | sldrHandler24 0x438290 | sldrStateNotify 0x438110 |
+| HOLD 0x468188 | holdWidgetInit 0x43CC30 | 0x409BE0 | 0x409C00 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+| MBAR 0x46824C | mbarWidgetInit 0x43CD50 | 0x43CDB0 | 0x43CDF0 | 0x43CE10 | 0x43CE30 | 0x409DE0 |
+| IKON 0x468310 | 0x43D130 | 0x43D220 | 0x43D230 | 0x409C70 | 0x409CB0 | 0x409DE0 |
+
+Default handler cluster (shared): 0x409BD0 noop init (VUU!/LSTS/CLST/SEPR),
+0x409BE0 (+0x10), 0x409BF0 (+0x18), 0x409C00 (no-op paint — VUU!/HOLD),
+0x409C70 (default event — most classes), 0x409CB0 (+0x24), 0x409DE0 (default
+state-notify — most classes). **HOLD has NO custom paint or event handler**
+— it is a passive widget (see 18.2).
+
+### 18.2 HOLD — invisible geometry anchor (CONFIRMED)
+
+`holdWidgetInit(widget, payload, size, b22)` (0x43CC30):
+- `state (+0x34) &= ~0x08` — clears the visible bit: **HOLD widgets start
+  hidden** (unconditionally, before any size check).
+- if `size >= 8`: `[widget+0x38] = bswap32(payload[0])`,
+  `[widget+0x3C] = bswap32(payload[4])` (payload = desc+0x28, two u32BE words).
+
+prvw/doku HOLD records all have **size 0** (walker: `sz=  0`) → extensions
+never written; the widget is a pure named geometry anchor:
+
+```
+struct holdWidgetObj  // 64 B (class size 0x40) — struct in Ghidra
+{ widgetBase;  // 56 B
+  uint ext0;    // +0x38 (bswap32 of payload[0] when size >= 8)
+  uint ext1;    // +0x3C (bswap32 of payload[4])
+}
+```
+
+Instances (prvw %VUU): sbhd (10,30 350x46), sbhs (10,90 136x106),
+sbht (10,150 38x166), sbhi (10,210 350x226) — horizontal scrollbar parts;
+sbvd (310,10 326x270), sbvs (250,110 266x236), sbvt (200,190 216x218),
+sbvi (20,10 36x270) — vertical scrollbar parts; plus klrl/imjl/iknl/lfik/
+lmik (tab pages, doku), list (list tab), lscl (list scale anchor).
+Role: the app looks up these named widgets (instance table, instCode @+0x2C)
+and reads their **scaled quads** (+0x1C..+0x27) to position/draw the skin
+scrollbar parts — the anchors are never painted themselves. Consumer-side
+confirmation (who reads sbhd etc. at runtime) is pending — D-late.
+
+### 18.3 SLDR — slider object model (CONFIRMED)
+
+`sldrWidgetInit(widget, payload, size, b22)` (0x438060): if `size >= 0xC`:
+`[widget+0x38] = bswap32(payload[0])` (VALUE), `[widget+0x3C] =
+bswap32(payload[1])` (MAX), and if `bswap32(payload[2]) & 1`:
+`[widget+0x36] |= 0x20` (ticked variant). All 10 prvw sliders carry
+(0x32, 0x64, 0|1) = **(value=50, max=100, ticked?)** — the demo shows every
+slider at the midpoint; p3=1 marks the ticked variants (v3/v4/h3/h4).
+
+```
+struct sldrWidgetObj  // 68 B (class size 0x44) — struct in Ghidra
+{ widgetBase;  // 56 B; +0x36 flag byte: bit0 = valueChanged (sticky),
+               //   bit5 (0x20) = ticked variant (from payload p3)
+  uint value;   // +0x38 (payload p1; updated by drag)
+  uint max;     // +0x3C (payload p2)
+  uint cursor;  // +0x40 (written by sldrEventPress — computed cursor)
+}
+```
+
+**State word bits (SLDR, +0x34):** 0x02 hilited (hover), 0x40 press,
+0x80 release, 0x100 click (set by `sldrEventPress` — same 1/2/3 convention
+as BPMN), 0x1000 value-changed pending (cleared by consumer — writer
+verified, clearer pending). `sldrEventPress` (0x4381A0) requires
+`state & 0x10` (enabled) and `state & 6` (0x02 or 0x04) for the value path;
+bit 0x04 writer still untraced.
+
+**Interaction chain** (CONFIRMED): pointer event → sldrEventPress →
+`sldrValueFromPointer(widget+0x1C scaledQuad{corner form}, valueStruct,
+event+0x10, &out)` → new value into +0x38, computed cursor into +0x40,
+flag bit0 set, `widgetRefresh(widget+0x1C, widget)`, and if the value
+changed: `widgetSendMsg(widget, flagsStored, 3, 0, event+0xC, 0, 0)`.
+
+### 18.4 widgetSendMsg — parent message protocol (CONFIRMED)
+
+`widgetSendMsg(widget, a2, eventId, a4, a5, a6, a7)` (0x409760):
+requires widget magic 0x5655D881, non-NULL parent (@+0x08), and
+`[parentClass + 0x9C]` (msgHandler) non-NULL. Builds a 44-byte message:
+
+```
++0x00  sender widget ptr
++0x04  sender instCode (widget+0x2C)
++0x08  a2      +0x0C  eventId
++0x10  a4      +0x14  a5
++0x18  a6      +0x1C  a7
+```
+
+then calls `msgHandler(parent, widget, &msg)`. Known eventId: **3 = slider
+value-changed** (a2 = widget+0x30 flagsStored, a5 = event+0xC pointer).
+This is the same parent-up dispatch family as widgetMsgBubble (0x4097F0,
+doc 18) — two variants in the 0x409760/0x4097F0 pair.
+
+### 18.5 Appearance part tables (CONFIRMED structure — Batch E will fill the rest)
+
+Two runtime globals in .data (currently 0, filled when an appearance loads):
+- **g_appCurrent @0x466954** — the loaded appearance object
+- **g_appFallback @0x466950** — fallback appearance (built-in default)
+
+`appearanceObj` (struct in Ghidra, 608 B minimum — full size TBD in E):
+
+```
++0x00  header (TBD — E)
++0x40  partOff[131]  — bswap32 heap offsets into part-descriptor objects.
+       Verified entries (slider subsystem):
+         [110] (off +0x1F8)  horizontal slider part descriptor
+         [122] (off +0x228)  vertical slider part descriptor
+         [0x6E..0x70]  slider TRACK parts (3 states: normal/hover/pressed)
+         [0x72..0x78]  slider THUMB parts (state 0-2, +4 when ticked:
+                        0x72/0x73/0x74 plain, 0x76/0x77/0x78 ticked)
+       Entry use: ptr = gApp + bswap32(partOff[i]); if partOff[i] == 0 fall
+       back to g_appFallback.
+```
+
+`appearancePart` (struct in Ghidra, 32 B minimum — layout continues, TBD):
+
+```
++0x00  u16BE dimX (scaled; for horiz parts = thumb width / thickness)
++0x02  u16BE dimY (scaled; vertical counterpart)
++0x04  ... (12 B unmapped)
++0x10  u8 margin (horizontal)   — sldrPartLookup outC (horiz) / +0x11 (vert)
++0x12  u8 margin (horizontal 2) — sldrPartLookup outB (horiz) / +0x13 (vert)
+```
+
+Slider paint (`sldrRender` 0x42B820, via `sldrPaint` 0x438160):
+- quad is **corner form {x1, y1, x2, y2}** (x2-x1 vs y2-y1 selects
+  orientation); empty rect (x1>=x2 || y1>=y2) → no-op.
+- `n = (valueStruct->flags & 0x23) - 1` (35 cases, jump table @0x4577C4) →
+  (trackIdx ∈ {0x6E,0x6F,0x70}, thumbIdx ∈ {0x72..0x78}).
+- Track drawn via `0x429860(ctx, &pos, partPtr)` (DIB/surface draw cluster —
+  full decode D-late); margins read from partPtr+0x10/+0x12; thumb from
+  table[thumbIdx]. The +0x36 flag byte thus drives paint directly:
+  bit5 = ticked (part index +4), bits 0-2 = state (case dispatch with
+  0x04/0x10 from the &0x23 mask).
+
+`0x42BF20 sldrValueFromPointer`: pointer → float math → value
+(round((pt - start - margins) / trackLen * span) + min, clamped, end-snap
+when the pointer is within `A` (thumb dimension) of an end). Exact start/
+span terms to be re-verified against the 0x42C070 vertical branch (D-late).
+
+### 18.6 Ghidra enrichment (this batch — read-back verified)
+
+- Renames (12): holdWidgetInit, sldrWidgetInit, sldrPaint, sldrEventPress,
+  sldrStateNotify, sldrHandler10, sldrHandler24, sldrValueFromPointer,
+  sldrPartLookup, sldrRender, widgetSendMsg, widgetInitNoop.
+- Prototypes (9): the above minus sldrStateNotify/sldrHandler10/24 (bodies
+  not yet decoded — no fabricated signatures), plus kntrWidgetInit
+  (arg1/arg3 verified; arg2/arg4 per the shared initFn convention — noted).
+- Comments (8): holdWidgetInit, sldrWidgetInit, sldrEventPress,
+  sldrValueFromPointer, sldrPartLookup, sldrRender, widgetSendMsg,
+  kntrWidgetInit.
+- Structs (3): holdWidgetObj (64 B), sldrWidgetObj (68 B), appearanceObj
+  (608 B, part table model), appearancePart (32 B, partial).
+- Data (2): g_appFallback @0x466950, g_appCurrent @0x466954 (uint globals).
+
+Parameter-audit status (per-function gate, this batch):
+- **fully enriched:** holdWidgetInit (4 params verified at the call site +
+  body), sldrWidgetInit (same), sldrPartLookup (5 verified),
+  sldrValueFromPointer (4 verified), sldrRender (3 verified: ctx/quad/
+  valueStruct — ctx passthrough to 0x429860), widgetSendMsg (7 verified:
+  full message struct), kntrWidgetInit (arg1/arg3 verified; arg2/arg4 by
+  uniform convention — noted in comment).
+- **partially audited:** sldrPaint (arg1 verified; arg2 never read in body
+  — deferred; arg3 = ctx passthrough verified), sldrEventPress (arg1/arg2
+  roles verified; event struct internals: +0x0C, +0x10, +0x18 consumed —
+  more of the event struct pending).
+- **deferred (bodies not decoded):** sldrStateNotify, sldrHandler10,
+  sldrHandler24, 0x429860 (drawPart), 0x42C150, 0x42D170, the sldrRender
+  vertical branch (0x42BAC1), the 35-case dispatch table contents
+  (0x4577C4).
+
+### 18.7 Open items from this batch
+
+- Who reads the sbhd/sbvs/etc. anchors at runtime (app-side scrollbar
+  rendering) — D-late.
+- sldrRender vertical branch + full track/thumb draw sequence (0x429860,
+  0x42BAC1..0x42BFD0) — D-late.
+- sldrValueFromPointer exact start/span math incl. the 0x42C070 vertical
+  branch — D-late.
+- State bit 0x04 (second half of the `state & 6` test) writer; 0x1000
+  clearer (consumer of the value-changed message) — D-late / C1.
+- appearanceObj header (first 0x40 B) and full part-table index map (all
+  131 entries; only 12 verified) — **Batch E**.
+- appearancePart layout beyond +0x13 (bitmap resource reference, 9-slice
+  caps) — **Batch E** (overlaps the S1 hapBitmapObj pipeline).
+- g_appCurrent/g_appFallback allocation + loading (which HAP section fills
+  the appearance object) — **Batch E**.

@@ -505,4 +505,17 @@ to enumerate literals — we list strings and diff ourselves.
 - get_disassembly/get_xrefs_to/get_hexdump/list_functions = sync;
   get_pseudocode may be async (task_id).
 - rename_symbols_batch needs CURRENT names; function names lowercase.
-- No codemode setTimeout — sequential polls only.
+- No codemode setTimeout — sequential polls only.- **Batch D1+D2 core — DONE (2026-11-24, doc 17 §18)**: full 20-class
+  method table (file-bytes-verified; class objects in .data); HOLD object
+  model (invisible geometry anchor; init = hide + optional bswap32 payload
+  ext @+0x38/+0x3C); SLDR object model (value @+0x38, max @+0x3C, cursor
+  @+0x40, flag byte +0x36 bit0 valueChanged/bit5 ticked; state bits
+  0x02/0x40/0x80/0x100/0x1000); sldrEventPress interaction chain;
+  widgetSendMsg parent-message protocol (44B struct, [parentClass+0x9C],
+  eventId 3 = value-changed); appearance part tables (g_appCurrent
+  0x466954 / g_appFallback 0x466950; partOff[131] @appearance+0x40;
+  slider entries 110/122/0x6E-0x70/0x72-0x78; appearancePart {dimX,dimY
+  u16BE, margins @+0x10..0x13}); prvw slider payloads (50,100,ticked).
+  12 renames + 9 protos + 8 comments + 4 structs + 2 data, read-back
+  verified. D-late: sldrRender vertical + 0x429860 draw, value math
+  vertical branch, state bit 0x04 writer, sbhd anchor consumers.

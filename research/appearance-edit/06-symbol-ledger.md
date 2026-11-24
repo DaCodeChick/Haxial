@@ -653,3 +653,49 @@ was a decode-arithmetic error (target = 0x40FCC0 menuDestroy entry);
 superseding the B2 "unreferenced sample data" note (B2 ledger entry above
 remains as a historical record of the scoped claim); mbarSubObj itemArray
 cap 0x20 with 32-pointer array.
+
+### S2 Batch D1+D2 — HOLD/SLDR object models + appearance part tables (2026-11-24)
+
+Ghidra changes (all read-back verified; doc 17 §18):
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x43CC30 FUN_0043cc30 → holdWidgetInit | rename+proto+comment | (widget, payload, size, b22); state &= ~0x08 (start hidden); size>=8 → +0x38/+0x3C = bswap32(payload[0..4]); HOLD = invisible geometry anchor (prvw sz=0 records) |
+| 0x438060 FUN_00438060 → sldrWidgetInit | rename+proto+comment | size>=0xC → +0x38 = bswap32(p0) VALUE, +0x3C = bswap32(p1) MAX; p2&1 → +0x36 |= 0x20 (ticked); prvw payloads (50,100,0\|1) |
+| 0x438160 FUN_00438160 → sldrPaint | rename+proto+comment | builds {flag,p1,p2} struct, calls sldrRender(ctx, widget+0x1C, struct) |
+| 0x4381A0 FUN_004381a0 → sldrEventPress | rename+proto+comment | event+0x18: 1→state\|=0x40, 2→\|=0x80, 3→\|=0x100; value path needs state&0x10 and state&6; sldrValueFromPointer; +0x40 = computed cursor, +0x38 = new value, +0x36\|=1; widgetRefresh; widgetSendMsg(...,3,...) on change; state\|=0x1000 |
+| 0x438110 → sldrStateNotify | rename | class+0x5C; body not decoded |
+| 0x438100 → sldrHandler10 | rename | class+0x10; body not decoded |
+| 0x438290 → sldrHandler24 | rename | class+0x24; body not decoded |
+| 0x42BF20 → sldrValueFromPointer | rename+proto+comment | (quad{corner}, valueStruct, ptPtr, out); orientation w vs h; float value math; end-snap by thumb dim A |
+| 0x42BD00 → sldrPartLookup | rename+proto+comment | (quad, valueStruct, &C, &B, &A); partDesc = gApp+bswap32(gApp+0x1F8 horiz / +0x228 vert); C=+0x10/+0x11, B=+0x12/+0x13; A = bswap16(gApp+bswap32(gApp+0x40+idx*4[+2 vert])); idx 0x72/0x76 (horiz), 0x7E/0x82 (vert), +4 ticked; fallback g_appFallback |
+| 0x42B820 → sldrRender | rename+proto+comment | (ctx, quad{corner}, valueStruct); n=(flags&0x23)-1, 35-case jumptable 0x4577C4 → (track 0x6E-0x70, thumb 0x72-0x78); track via 0x429860 |
+| 0x409760 → widgetSendMsg | rename+proto+comment | (widget, a2, eventId, a4, a5, a6, a7); 44B msg {sender, instCode, a2, eventId, a4, a5, a6, a7}; msgHandler = [parentClass+0x9C](parent, widget, &msg); eventId 3 = slider value-changed |
+| 0x409BD0 → widgetInitNoop | rename | shared no-op init (VUU!/LSTS/CLST/SEPR) |
+| 0x412780 kntrWidgetInit | proto | (widget, payload, size, b22); state \|= 0x20 (bit5); size>=0xC; arg1/arg3 verified, arg2/arg4 per convention |
+| holdWidgetObj | struct (new) | 64 B: widgetBase + ext0 @+0x38 + ext1 @+0x3C |
+| sldrWidgetObj | struct (new) | 68 B: widgetBase + value @+0x38 + max @+0x3C + cursor @+0x40 |
+| appearanceObj | struct (new) | 608 B minimum: header (TBD E) + partOff[131] @+0x40 (bswap32 offsets → appearancePart); verified entries 110/122/0x6E-0x70/0x72-0x78 |
+| appearancePart | struct (new) | 32 B minimum: dimX u16BE @+0, dimY u16BE @+2, margins u8 @+0x10..+0x13 |
+| g_appFallback | data (new) | uint @0x466950 (runtime appearance fallback; 0 in .data) |
+| g_appCurrent | data (new) | uint @0x466954 (runtime current appearance; 0 in .data) |
+
+Parameter-audit status (per-function gate, this batch):
+- **fully enriched (8):** holdWidgetInit, sldrWidgetInit, sldrPartLookup,
+  sldrValueFromPointer, sldrRender, widgetSendMsg, kntrWidgetInit
+  (arg2/arg4 convention-noted), sldrPaint (arg1/arg3 verified; arg2 never
+  read — documented).
+- **partially audited (1):** sldrEventPress (args verified; event struct
+  internals +0x0C/+0x10/+0x18 consumed, rest pending).
+- **deferred (4 + 5 helpers):** sldrStateNotify, sldrHandler10,
+  sldrHandler24 (bodies not decoded); 0x429860/0x42C150/0x42D170/0x42BAC1
+  (sldrRender vertical)/0x4577C4 table contents (D-late); Batch E:
+  appearanceObj header, full part table, appearancePart tail, appearance
+  loading.
+
+Corrections/notes (doc 17 §18): class objects are in .data (not .rdata);
+class table in §6 had KNTR initFn as "—" — it is 0x412780 (kntrWidgetInit,
+named in C3); initFn convention is (widget, payload=desc+0x28,
+size=bswap32(desc+0x14), b22) — 4 args, but leaf inits read stack args with
+interleaved register pushes (HOLD/SLDR/KLTR each verified individually);
+widgetInitNoop = the "fast path" init for VUU!/LSTS/CLST/SEPR.
