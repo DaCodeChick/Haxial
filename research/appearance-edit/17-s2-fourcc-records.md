@@ -1379,3 +1379,191 @@ Parameter-audit status (per-function gate, this batch):
   caps) — **Batch E** (overlaps the S1 hapBitmapObj pipeline).
 - g_appCurrent/g_appFallback allocation + loading (which HAP section fills
   the appearance object) — **Batch E**.
+
+## 19. Batch D3 — built-in window creation, VWIN root layout, slot
+registry (2026-11-24)
+
+### 19.1 Candidate "part tables" resolved — NON-ISSUE
+
+The two regions flagged in the resume context as "candidate appearance-part
+tables" are **instance-table tails**, not part tables:
+
+- `0x45F0C0..0x45F0DC` = dokuInstTable entries [15..18]
+  (imjl 0x80, iknl 0x84, lfik 0x88, lmik 0x8C).
+- `0x45F61C..0x45F660` = prvwInstTable entries [20..28]
+  (sbhs 0x7C, sbhi 0x80, sbht 0x84, sbvd 0x88, sbvs 0x8C, sbvi 0x90,
+  sbvt 0x94, trit 0x98, trim 0x9C).
+
+Full prvwInstTable (29 entries, 8 B each = {name4cc, slot u16, pad u16}):
+`pmnu 0x28, misc 0x2C, btns 0x30, tiks 0x34, boxs 0x38, slid 0x3C, hsbs
+0x40, vsbs 0x44, lscc 0x48, umen 0x50, mnu2 0x54, mnu3 0x58, list 0x5C,
+lscl 0x60, pbar 0x64, pbsl 0x68, mbar 0x6C, mnut 0x70, tmnu 0x74, sbhd 0x78,
+sbhs 0x7C, sbhi 0x80, sbht 0x84, sbvd 0x88, sbvs 0x8C, sbvi 0x90, sbvt 0x94,
+trit 0x98, trim 0x9C`. dokuInstTable: 19 entries, slots 0x40..0x8C step 4.
+
+**Slot semantics (re-confirmed against prvwCtor, §19.5):** the second word
+is a **byte offset into the window object** where `widgetInstantiate`
+stores the instantiated widget's pointer when the record's instCode matches
+the table name. Slot ranges: prvw 0x28..0x9C (29 slots, object size 0xA0 =
+maxSlot+4 exactly), doku 0x40..0x8C (object size 0x1C0, extra 0xC0 bytes of
+doku-specific fields beyond the slots).
+
+### 19.2 Built-in window creation chain (CONFIRMED, code-verified)
+
+```
+prvwCtor 0x401E30 / docCreate 0x401000
+  windowCreateFromBuiltIn(objSize, name4cc, instTable, instCount, instCtx, parent)
+    0x408ED0
+    lookupBuiltInRec(0x5657494E /*'VWIN' code const*/, name4cc, &size)
+      0x445830 — searches the %REZ registry (0x45F830) via
+      searchRecords 0x4401C0 + builtinRecCmp 0x4457C0
+      -> payload ptr = bswap32(rec+0x10) + 0x45F830; *size = bswap32(rec+0x0C)
+    vuuPayloadParse(objSize, payload, size, instTable, instCount, instCtx, parent, NULL)
+      0x408B60
+      widgetAllocInit(objSize, &geom, packedStyle, parent, namePstr)  0x408670
+        memAllocZeroed(max(objSize,0x28)); scaleQuad(geom);
+        windowCtor 0x40BFA0(geom, packedStyle, parent, obj) -> obj+0x0C subObj;
+        windowDefaultPaintInstall 0x40AE70(0x46624C, subObj);
+        obj+0x00 = 0x5655D881 (widget magic); obj+0x04 = classWIND 0x466188
+      [winObj+0x18] = bswap32(wp+0x04)
+      winSubParamSet([winObj+0x0C], bswap32(wp+0x08))
+      if quad non-zero: windowSetClientQuad([winObj+0x08], quad[0..3])
+      if style==0: winStyleSet0   if style==1: winStyleSet1   (2: none)
+      widgetInstantiate(root, childBase, childLen, instTable, root,
+                        instCount, instCtx, NULL)
+```
+
+**Correction (C3 note):** the earlier "windowOwn block @0x41B42C"
+attribution was a decode-arithmetic error (same class as the menuDestroy
+mis-decode). The real built-in-window call site for prvw is
+`PUSH 0x45F57C; ... CALL windowCreateFromBuiltIn` **at 0x401E3D in
+prvwCtor**; for doku at 0x40100E in docCreate.
+
+### 19.3 %REZ registry — six built-in windows (CONFIRMED)
+
+rezHeader @0x45F830 (24 B): `%REZ`, version u16BE=1 @+0x04, total u32BE
+0x3C98 @+0x10, recordCount u32BE=9 @+0x14. rezRec (20 B, @0x45F848):
+`{class4cc, name4cc, pad4, size u32BE, off u32BE}`.
+
+| rec | class | name | size | payload | window geometry | client quad {w,h,maxW,maxH} | f,f2 | title |
+|---|---|---|---|---|---|---|---|---|
+| 0 | MENU | exam | 0x218 | 0x45F900 | — | — | — | (B2) |
+| 1 | MENU | fsit | 0x78C | 0x45FB18 | — | — | — | (B2) |
+| 2 | MENU | scal | 0x328 | 0x4602A8 | — | — | — | (B2) |
+| 3 | VWIN | doku | 0x620 | 0x4605D0 | 380×400 | 380,300,20000,20000 | 0x10,0xF01 | (empty) |
+| 4 | VWIN | efik | 0x448 | 0x460BF0 | 430×246 | 430,246,1000,246 | 0x10,0x900 | "Edit File Icon" |
+| 5 | VWIN | emik | 0x4B0 | 0x461038 | 340×380 | 0,0,0,0 (skipped) | 0x10,0x100 | (empty) |
+| 6 | VWIN | epxm | 0x908 | 0x4614E8 | 690×342 | 690,342,10000,10000 | 0x10,0x900 | (empty) |
+| 7 | VWIN | esik | 0x3B0 | 0x461DF0 | 430×246 | 430,246,430,246 | 0x10,0x100 | "Edit Icon" |
+| 8 | VWIN | prvw | 0x1328 | 0x4621A0 | 360×340 | 360,340,360,340 | 0x30,0x700 | "Preview GUI Items" |
+
+The four edit-panel windows (efik, emik, epxm, esik) were known to C3 only
+via their instance tables (efikInstTable 0x46440C/8, esikInstTable
+0x4640C4/6, emikInstTable 0x465FB4/9, epxmInstTable 0x465A9C/18); their
+payloads are now located and walked (record counts 17/15/19/42, doc 17 §15).
+
+### 19.4 VWIN root record layout (CONFIRMED — code + full 6-window corpus)
+
+Standard 40 B descriptor (doc 17 §3): class "VWIN" @+0x00, geometry
+{x i16BE, y i16BE, w u16BE, h u16BE} @+0x04..+0x0B (all x=0,y=0), inst
+@+0x0C = 0, flags @+0x10 = 0, **size u32BE @+0x14 = window-own payload
+length**, f18/f1C = 0, mode/b22/b23/pad2, childCount u16BE @+0x26 (=1 for
+all six), pad1.
+
+Window-own payload (`size` bytes) at R+0x28:
+
+```
+wp+0x00  u16 f        (prvw 0x30; all others 0x10)
+wp+0x02  u16 f2       (prvw 0x700, doku 0xF01, efik 0x900, epxm 0x900,
+                       emik 0x100, esik 0x100)
+wp+0x04  u32 u04      -> bswap32 -> winObj+0x18 (prvw/doku 0; efik 0x2BF,
+wp+0x08  u32 u08      emik 0x322, epxm 0x97, esik 0x25A after bswap);
+                       u08 -> bswap32 -> winSubParamSet (0 for all six)
+wp+0x0C  u16BE quad[4] {clientW, clientH, maxW, maxH}
+wp+0x14  u8 style     (2 for all six; 0 -> winStyleSet0, 1 -> winStyleSet1,
+                       2 -> no call)
+wp+0x15  .. 0x2A pad
+wp+0x2B  u8 nameLen
+wp+0x2C  name pstr    (window title: "Preview GUI Items" / "Edit File
+                       Icon" / "Edit Icon"; empty for doku/emik/epxm)
+```
+
+- `packedStyle = bswap32(u32 @wp+0x00) = (f2 << 16) | f` — passed as
+  `widgetAllocInit` arg3 → `windowCtor` (style discriminant for the window
+  sub-object; semantics HYPOTHESIS: f 0x10 = standard / 0x30 = preview,
+  f2 = window kind — layout CONFIRMED, semantics not yet).
+- **childBase = R + 0x28 + round4(size)** (payload-relative: prvw 0x70,
+  doku 0x54 — matches both walked trees exactly; the VWIN root's single
+  child is a full-geometry KNTR containing the visible tree).
+- The name pstr is the only variable-length field; for size-0x2C records
+  (doku/emik/epxm) wp+0x2C is the payload's last byte, so their names are
+  empty in this build.
+
+### 19.5 Window object + slot consumption (CONFIRMED)
+
+`windowObjBase` (40 B, struct in Ghidra): +0x00 magic 0x5655D881, +0x04
+classObj = **classWIND 0x466188** (the registry's all-NULL-methods class —
+windows are widget-magic objects of class WIND), +0x08 parent, +0x0C subObj
+(windowCtor product; windowDefaultPaintInstall seeds it from the default
+method table 0x46624C), +0x10 pad, +0x14 instTableEnd (set by the app
+ctor: prvw 0x45F664 = table+29*8), +0x18 f18 (bswap32(u04); prvwCtor
+overwrites with 0x9B), +0x1C f1C, +0x20 f20, +0x24 f24 (prvw: 1). The
+slot array occupies [minSlot .. maxSlot+4) at absolute offsets (prvw
+0x28..0x9C, doku 0x40..0x8C); doku's object (0x1C0) carries 0xC0 further
+bytes beyond its slots.
+
+**prvwCtor slot consumption** (the consumer side of HOLD anchors, answering
+D1's open item):
+- `0x401DA0(mnu2 slot 0x54 widget, umen slot 0x50 widget)` ×2
+- `labelSetText 0x409910(mnu3 slot 0x58 widget, pstr 0x45F6E9, len
+  [0x45F6E8] u8)`
+- `0x401A20(list slot 0x5C widget +0xC, 0x100, 0, 3)`
+- `0x401BB0(lscl slot 0x60 widget +0xC, 0x100)`
+- `0x4015B0(scrollbar ctx, anchor+0xC, 0x100)` with ctx = hsbs (slot 0x40)
+  for the horizontal anchors sbhd/sbhs/sbhi/sbht (slots 0x78/0x7C/0x80/
+  0x84) and ctx = vsbs (slot 0x44) for the vertical anchors sbvd/sbvs/
+  sbvt/sbvi (0x88/0x8C/0x94/0x90); **each anchor slot is then rewritten
+  with the 0x4015B0 return value** (a bound scrollbar-part object).
+
+So the HOLD anchors are consumed at construction: the sbhd..sbvt geometry
+widgets are paired with the hsbs/vsbs scrollbar widgets via 0x4015B0, and
+the slots hold the bound objects from then on. (0x4015B0's internal
+behavior — D-late; 0x401A20/0x401BB0/0x401DA0 bodies also not yet decoded.)
+
+### 19.6 Ghidra enrichment (this batch — read-back verified)
+
+- Renames (4): windowSetClientQuad, winSubParamSet, winStyleSet0,
+  winStyleSet1.
+- Prototypes (8): windowCreateFromBuiltIn, vuuPayloadParse,
+  widgetAllocInit, lookupBuiltInRec, windowSetClientQuad, winSubParamSet,
+  winStyleSet0, winStyleSet1.
+- Comments (10): the above minus lookupBuiltInRec's re-comment, plus
+  prvwCtor (0x401E30) and docCreate (0x401000).
+- Struct (1): windowObjBase (40 B).
+- Parameter audit (per-function gate, this batch):
+  - **fully enriched:** windowCreateFromBuiltIn (6 args — all traced to
+    vuuPayloadParse/widgetAllocInit), widgetAllocInit (5 args — body
+    decoded end to end), lookupBuiltInRec (3 args — body decoded),
+    windowSetClientQuad (5 args — call site + corpus values),
+    winSubParamSet/winStyleSet0/winStyleSet1 (2 args — call sites; bodies
+    not decoded, params named by their single verified source).
+  - **partially audited:** vuuPayloadParse (arg1-arg5, arg8 verified;
+    arg6/arg7 = instCtx/parent pass-through to widgetInstantiate
+    arg7/widgetAllocInit arg4 — verified at the call sites; local cursor
+    tracking in the decompiler is unreliable for this function, raw
+    disassembly + data used as authority).
+  - **deferred:** 0x4015B0, 0x401A20, 0x401BB0, 0x401DA0 (bodies not
+    decoded — D-late/E), windowCtor 0x40BFA0 internals (C3 scope, partially
+    done: winSlot6/8/12Set named), winStyleSet0/1 bodies (never taken in
+    this build — low value).
+
+### 19.7 Open items from this batch
+
+- f/f2 (packedStyle) and u04 semantics per window kind — HYPOTHESIS only
+  (D-late, or when the edit-panel windows' ctors are decoded).
+- 0x4015B0 (scrollbar anchor binding), 0x401A20 (list), 0x401BB0, 0x401DA0
+  bodies — D-late.
+- efik/emik/epxm/esik ctor flows (their winSlot sets + slot consumers) —
+  D-late (mirrors prvwCtor/docCreate).
+- [winObj+0x18] = 0x9B (prvw) and [pmnu+0x30] = 0x9C — field semantics
+  unknown (D-late).

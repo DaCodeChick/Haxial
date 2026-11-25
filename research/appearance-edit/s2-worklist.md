@@ -519,3 +519,14 @@ to enumerate literals — we list strings and diff ourselves.
   12 renames + 9 protos + 8 comments + 4 structs + 2 data, read-back
   verified. D-late: sldrRender vertical + 0x429860 draw, value math
   vertical branch, state bit 0x04 writer, sbhd anchor consumers.
+- **Batch D3 (window creation/VWIN/slots) — DONE (2026-11-24, doc 17 §19)**:
+  built-in window chain decoded (windowCreateFromBuiltIn →
+  lookupBuiltInRec/%REZ → vuuPayloadParse → widgetAllocInit +
+  widgetInstantiate); %REZ = 3 MENU + 6 VWIN windows (efik/emik/epxm/esik
+  payloads located + walked); VWIN root + window-own payload layout
+  code-verified against all 6 windows; windowObjBase (class WIND, slot
+  array at absolute offsets); prvwCtor slot consumption decoded (HOLD
+  anchors sbhd..sbvt bound to hsbs/vsbs via 0x4015B0, slots rewritten);
+  candidate part tables resolved as instance-table tails. 4 renames, 8
+  protos, 10 comments, 1 struct (read-back verified). D-late: 0x4015B0/
+  0x401A20/0x401BB0/0x401DA0 bodies, f/f2/u04 semantics, efik..esik ctors.

@@ -699,3 +699,30 @@ named in C3); initFn convention is (widget, payload=desc+0x28,
 size=bswap32(desc+0x14), b22) — 4 args, but leaf inits read stack args with
 interleaved register pushes (HOLD/SLDR/KLTR each verified individually);
 widgetInitNoop = the "fast path" init for VUU!/LSTS/CLST/SEPR.
+
+### S2 Batch D3 — built-in window creation + VWIN root layout (2026-11-24)
+
+Ghidra changes (all read-back verified; doc 17 §19):
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x40C9A0 FUN_0040c9a0 → windowSetClientQuad | rename+proto+comment | (subObj=winObj+0x08, clientW, clientH, maxW, maxH) — VWIN wp+0x0C quad via scaleQuad |
+| 0x40CC30 FUN_0040cc30 → winSubParamSet | rename+proto+comment | (subObj=winObj+0x0C, bswap32(wp+0x08)); 0 for all 6 built-ins |
+| 0x40CAC0 FUN_0040cac0 → winStyleSet0 | rename+proto+comment | style u8==0 dispatch; never taken (all 6 use 2) |
+| 0x40CB10 FUN_0040cb10 → winStyleSet1 | rename+proto+comment | style u8==1 dispatch; never taken |
+| windowCreateFromBuiltIn 0x408ED0 | proto+comment | (objSize, name4cc, instTable, instCount, instCtx, parent) → lookupBuiltInRec + vuuPayloadParse |
+| vuuPayloadParse 0x408B60 | proto+comment | (objSize, payload, payloadSize, instTable, instCount, instCtx, parent, nameOut); full VWIN root + window-own payload decode; childBase = R+0x28+round4(size) |
+| widgetAllocInit 0x408670 | proto+comment | (objSize, geom, packedStyle=(f2<<16)\|f, parent, namePstr); window magic + classWIND + subObj |
+| lookupBuiltInRec 0x445830 | proto+comment | (classKey, name4cc, sizeOut) — %REZ search; returns payload ptr |
+| prvwCtor 0x401E30 | comment | full slot-consumption map (sbhd..sbvt anchors → 0x4015B0 with hsbs/vsbs) |
+| docCreate 0x401000 | comment | doku ctor: 0x1C0, dokuInstTable, winSlot12/6/8Set callbacks |
+| windowObjBase | struct (new) | 40 B: magic/classObj(WIND)/parent/subObj/pad/instTableEnd/f18/f1C/f20/f24; slots beyond |
+
+Findings (doc 17 §19): candidate part tables 0x45F0C0/0x45F61C = instance-table
+tails (NON-ISSUE); %REZ = 3 %MNU + 6 %VWIN (doku/efik/emik/epxm/esik/prvw —
+four edit-panel payloads located); VWIN root = 40B descriptor + window-own
+payload {f u16, f2 u16, u04 u32, u08 u32, quad u16BE[4] client/max, style u8,
+nameLen u8, name pstr}; titles: prvw "Preview GUI Items", efik "Edit File
+Icon", esik "Edit Icon"; windows are widget-magic objects of class WIND
+(0x466188); correction: "windowOwn block 0x41B42C" was a decode error — real
+call at 0x401E3D (prvwCtor).
