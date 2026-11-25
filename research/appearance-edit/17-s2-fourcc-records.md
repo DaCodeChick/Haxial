@@ -1567,3 +1567,141 @@ behavior — D-late; 0x401A20/0x401BB0/0x401DA0 bodies also not yet decoded.)
   D-late (mirrors prvwCtor/docCreate).
 - [winObj+0x18] = 0x9B (prvw) and [pmnu+0x30] = 0x9C — field semantics
   unknown (D-late).
+
+## 20. Batch D-late — scrollbar binding, part-draw, and the C-blob
+convergence (2026-11-24)
+
+### 20.1 sbarBindCreate — the scrollbar-bound object (CONFIRMED)
+
+`0x4015B0 sbarBindCreate(scrollbarWidget, anchorGeom, flags)` is what
+prvwCtor calls for each HOLD anchor (§19.5). It returns a **76-byte
+scrollbar-bound object** that replaces the anchor's slot value:
+
+```
+struct sbarBindObj {           // 76 B — struct in Ghidra
+    uint  f00;                 // set by 0x408F10 (opaque)
+    uint  controller;          // = 0x48E000 shared sbarController
+    char  f08_36[0x2E];        // set by 0x408F10 (opaque; holds the
+                               //   scrollbar widget + anchor geometry refs)
+    char  flagByte;            // |= 2 if flags & 0x200
+    char  pad37;
+    ushort val250;             // 0x00FA (250) — default range/value words
+    ushort val500;             // 0x01F4 (500)   (semantics HYPOTHESIS)
+    ushort val50;              // 0x0032 (50)
+    ushort val100;             // 0x0064 (100)
+    char  pad40_4c[0xC];
+}
+```
+
+On first use (static flag `[0x48E0C4]`) it lazily builds the **shared
+196-byte scrollbar controller** at `0x48E000` (.bss) — `g_sbarController`
+(struct in Ghidra): `tag 0x4D795342 @+0`, `0x4C @+8`, six function
+pointers @+0x10/+0x1C/+0x20/+0x24/+0x28/+0x2C (0x401680/0x4016A0/
+0x4017E0/0x401970/0x4019A0/0x4019A0), sized via `0x409BC0(0xC4)`,
+registered via `0x41BB10`. One controller is shared by every scrollbar
+instance in the app. `0x408F10` (the 76-B object's own constructor) is not
+yet decoded — D-late/E.
+
+### 20.2 partDraw — the skin-part draw primitive (CONFIRMED structure)
+
+`0x429860 partDraw(ctx, dstQuad{x,y,w,h}, partDesc)` is the primitive both
+`sldrRender` (track/thumb) and the class paint handlers use to draw one
+appearance part. Structure (raw disassembly-verified):
+
+1. `cBlobHeaderDecode(partDesc, &surface116)` — resolve the part's
+   drawable surface (a ~116-B local).
+2. If `part+0x04 & 0x10` (extended): content-rect fill via
+   `extContentFill` — colour u16BE @part+0x14, dst rect = quad inset by
+   the ext offsets/margins @part+0x1C..+0x1F.
+3. If `part+0x04 & 1` (tiled/alpha): `bmpBlitAlpha` + `partBlitRepeat` +
+   `bmpBlitAlpha` (mode `(transIdx<<24)|1`, `transIdx = part+0x07`).
+4. Else (standard): **horizontal 3-band split** —
+   `bmpBlitToSurface` (left, width = capL = part+0x0C),
+   `nineSliceStretchH` (middle), `bmpBlitToSurface` (right, width =
+   capR = part+0x0E).
+
+Blit/decode callees (all pre-existing S1 names, preserved — only
+prototypes re-derived from the partDraw call sites):
+
+| addr | name (S1) | role in partDraw |
+|---|---|---|
+| 0x429100 | cBlobHeaderDecode | resolve part C-blob → surface |
+| 0x426830 | extContentFill | extended content fill (colour @+0x14, insets @+0x1D/0x1F) |
+| 0x427D80 | bmpBlitToSurface | opaque cap blits (left/right bands) |
+| 0x427FD0 | bmpBlitAlpha | transparency-index blits (tiled path) |
+| 0x4291B0 | nineSliceStretchH | middle-band per-pixel replication |
+| 0x429220 | partBlitRepeat | repeated/tiled blit (new name; body not decoded) |
+
+**Confidence note:** the branch structure and argument wiring are
+CONFIRMED from disassembly. The "standard path = horizontal 3-slice using
+capL/capR as the edge-band widths" is a well-supported interpretation
+(PROBABLE→high): it matches the C-blob cap bytes at +0x0C/+0x0E and the
+S1 nine-slice edge-replication model (doc 14), and slider tracks/thumbs
+are 1-D parts. The exact meaning of the `flags & 1` (tiled) branch and of
+`part+0x07` (transIdx) in this context remains partially open.
+
+### 20.3 THE CONVERGENCE — appearance parts ARE C-blobs (CONFIRMED)
+
+This is the link that closes the loop between Batch D's "appearance part
+tables" and S1's C-blob/9-slice work:
+
+- `sldrPartLookup`/`sldrRender` resolve a part as
+  `partPtr = g_appCurrent + bswap32(partOff[i])` — an offset into the
+  loaded appearance object.
+- `partDraw` passes that `partPtr` directly to `cBlobHeaderDecode`.
+- The fields `sldrPartLookup` reads off the part map 1:1 onto the C-blob
+  base header (doc 14 §1):
+  - dimension `A = bswap16(part+0x00)` = C-blob **width/height** u16BE
+  - margins `C = u8[part+0x10]`, `B = u8[part+0x12]` = C-blob **field2**
+    (u32BE @+0x10) re-read as bytes — the slider's margin words
+  - flat colour `u16BE @part+0x14` = C-blob **extColour**
+  - content insets `@part+0x1D/+0x1F` = C-blob **contentInsetTop/Bottom**
+
+So the appearance's part table (appearanceObj.partOff[131]) indexes
+**C-blob part descriptors** — the same pixel format S1 reconstructed
+(width/height/flags/bpp/palCount/transIdx/field0/caps L,T,R,B/field2 +
+optional 12-B ext block + palette-before-pixels). The struct
+`cBlobPartDesc` (32 B = 20-B base header + 12-B ext, in Ghidra) now models
+this; `appearancePart` was re-pointed at the same layout.
+
+Implication for the Rust reimplementation: a Haxial skin "part" is a
+C-blob (a 9-slice-capable pixel image with an optional ext colour/insets
+block), and the appearance object is a table of offsets into a bank of
+such parts. No separate "part image" format is needed — the C-blob is the
+part.
+
+### 20.4 Ghidra enrichment (this batch — read-back verified)
+
+- Renames (3 new): sbarBindCreate (0x4015B0), partDraw (0x429860),
+  partBlitRepeat (0x429220). Five blit/decode callees kept their S1 names
+  (cBlobHeaderDecode, extContentFill, bmpBlitToSurface, bmpBlitAlpha,
+  nineSliceStretchH) — rename skipped, only prototypes re-derived.
+- Prototypes (8): the 3 new + the 5 re-derived from partDraw call sites.
+- Comments (8): sbarBindCreate, partDraw, and the 6 callees.
+- Structs (2 new): sbarBindObj (76 B), sbarController (196 B);
+  cBlobPartDesc (32 B) created, appearancePart re-pointed to it.
+- Data (2): g_sbarController @0x48E000 (sbarController),
+  g_sbarControllerInit @0x48E0C4 (char flag).
+
+Parameter audit (per-function gate, this batch):
+- **fully enriched:** sbarBindCreate (3 args — all traced: scrollbar
+  widget, anchor+0x0C geometry, flags; all four val* words + controller
+  write verified), partDraw (3 args — ctx/quad/partDesc verified; full
+  branch structure traced).
+- **re-derived (call-site-verified, S1 names preserved):** the 5 blit/
+  decode callees — argument order verified at the partDraw call sites;
+  individual bodies not re-decoded this batch (S1 coverage stands).
+- **deferred:** 0x408F10 (76-B object ctor), 0x409BC0 (controller size
+  fn), 0x41BB10 (controller registration), partBlitRepeat body, the
+  part+0x07/transIdx role in the tiled branch.
+
+### 20.5 Open items (this batch)
+
+- 0x408F10 — what the 76-B scrollbar-bound object's f00/f08_36 fields
+  actually hold (scrollbar widget + anchor geometry refs) — D-late/E.
+- The four val* defaults (250/500/50/100) — confirm whether they are
+  scrollbar range/value/min/max or arrow/step sizes — D-late/E.
+- sbarController's six function pointers (0x401680..0x4019A0) — the
+  shared scrollbar behavior methods — D-late/E.
+- Confirm the `flags & 1` tiled branch is the "secondary-mode" C-blob
+  path (doc 14 §1 flags 2/4/8) vs. a distinct tile mode — D-late.

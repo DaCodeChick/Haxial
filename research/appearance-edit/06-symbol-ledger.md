@@ -726,3 +726,32 @@ nameLen u8, name pstr}; titles: prvw "Preview GUI Items", efik "Edit File
 Icon", esik "Edit Icon"; windows are widget-magic objects of class WIND
 (0x466188); correction: "windowOwn block 0x41B42C" was a decode error — real
 call at 0x401E3D (prvwCtor).
+
+### S2 Batch D-late — scrollbar binding + partDraw + C-blob convergence (2026-11-24)
+
+Ghidra changes (all read-back verified; doc 17 §20):
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x4015B0 FUN_004015b0 → sbarBindCreate | rename+proto+comment | (scrollbarWidget, anchorGeom=anchor+0x0C, flags) → 76B sbarBindObj; lazy shared 196B sbarController @0x48E000 (tag 0x4D795342, 6 fns); default words 250/500/50/100 @+0x38..+0x3E; obj+0x04 = controller |
+| 0x429860 FUN_00429860 → partDraw | rename+proto+comment | (ctx, dstQuad, partDesc): cBlobHeaderDecode → [ext? extContentFill] → [tiled? bmpBlitAlpha×2+partBlitRepeat : standard 3-band bmpBlitToSurface/nineSliceStretchH/bmpBlitToSurface using capL/capR] |
+| 0x429220 FUN_00429220 → partBlitRepeat | rename+proto+comment | (ctx, dstX, dstY, dstW, surface, srcOffX, 0, surfaceField, transIdx) — tiled path; body not decoded |
+| cBlobHeaderDecode 0x429100 | proto+comment (S1 name kept) | (cBlob, surfaceOut ~116B) — also called with appearance parts |
+| extContentFill 0x426830 | proto+comment (S1 name kept) | (ctx, dstRect, colorByte, colorRest, field4) — 5-arg partDraw call site |
+| bmpBlitToSurface 0x427D80 | proto+comment (S1 name kept) | (ctx, dstRect, surface, size, cBlob, surfaceField, 0) |
+| bmpBlitAlpha 0x427FD0 | proto+comment (S1 name kept) | (ctx, dstRect, surface, size, cBlob, surfaceField, mode=(transIdx<<24)\|1) |
+| nineSliceStretchH 0x4291B0 | proto+comment (S1 name kept) | (ctx, dstX, dstY, dstW, surface, srcOffX, a7=0, surfaceField) |
+| sbarBindObj | struct (new) | 76 B |
+| sbarController | struct (new) | 196 B |
+| cBlobPartDesc | struct (new) | 32 B = C-blob 20B base header + 12B ext (doc 14 layout) |
+| appearancePart | struct (replaced) | re-pointed to the cBlobPartDesc layout |
+| g_sbarController | data (new) | sbarController @0x48E000 (.bss) |
+| g_sbarControllerInit | data (new) | char @0x48E0C4 |
+
+**Convergence (doc 17 §20.3): appearance part descriptors ARE C-blobs.**
+partOff[131] entries → gApp + bswap32(off) → C-blob (width/height u16BE
+@+0, caps @+0xC..+0xF, field2 @+0x10 = slider margins, extColour u16BE
+@+0x14, contentInsetTop/Bottom @+0x1D/+0x1F). The "appearance part tables"
+discovered in D1+D2 and S1's C-blob/9-slice pipeline are the same objects.
+The standard partDraw path is a horizontal 3-slice (capL/center/capR);
+slider track/thumb parts are 1-D parts drawn this way.

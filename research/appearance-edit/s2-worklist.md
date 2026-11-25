@@ -530,3 +530,14 @@ to enumerate literals — we list strings and diff ourselves.
   candidate part tables resolved as instance-table tails. 4 renames, 8
   protos, 10 comments, 1 struct (read-back verified). D-late: 0x4015B0/
   0x401A20/0x401BB0/0x401DA0 bodies, f/f2/u04 semantics, efik..esik ctors.
+- **Batch D-late (scrollbar binding + partDraw) — DONE (2026-11-24, doc 17 §20)**:
+  sbarBindCreate decoded (76B bound object + shared 196B scrollbar
+  controller @0x48E000, lazy init, default words 250/500/50/100); partDraw
+  decoded (cBlobHeaderDecode → ext fill / tiled / standard 3-band paths,
+  capL/capR edge bands); **CONVERGENCE: appearance parts ARE C-blobs**
+  (part table → C-blob part descriptors; S1 pipeline + D part tables are
+  the same objects); cBlobPartDesc struct; 5 S1 blit names preserved
+  (prototypes re-derived from partDraw call sites). 3 renames + 8 protos +
+  8 comments + 3 structs + 2 data (read-back verified). D-late/E: 0x408F10
+  (bound-obj ctor), val* word semantics, sbarController's 6 fns, tiled
+  branch vs secondary-mode.
