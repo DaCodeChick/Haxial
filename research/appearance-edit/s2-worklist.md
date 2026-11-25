@@ -541,3 +541,17 @@ to enumerate literals — we list strings and diff ourselves.
   8 comments + 3 structs + 2 data (read-back verified). D-late/E: 0x408F10
   (bound-obj ctor), val* word semantics, sbarController's 6 fns, tiled
   branch vs secondary-mode.
+- **Batch D deliverables (2026-11-24)**: doc 19 (19-s2-widget-geometry.md)
+  written — geometry consolidation (4 coordinate spaces, window outer/
+  client geometry, widget raw/scaled, HOLD anchors, SLDR geometry,
+  part=C-blob mapping, Rust implications, verification-status matrix).
+  tools/research/geo_check.py added — validates %REZ → VWIN descriptor +
+  window-own payload + childBase + instance slots for all 6 windows
+  (run: ALL OK).
+- **Batch D remaining (explicit deferrals, D-late/E)**: mbarSlotGeometry
+  0x42EB30 internals; state bit 0x04 writer (SLDR paint gate);
+  sldrRender vertical branch (0x42BAC1) + sldrValueFromPointer vertical
+  branch (0x42C070) exact start/span; 0x408F10 bound-object ctor;
+  sbarController's 6 fns (0x401680..0x4019A0); bound-object val* word
+  semantics; scaleQuad factor source global; C1: detach counterpart
+  (+0x8C?), list dtor ownership.
