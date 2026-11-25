@@ -555,3 +555,48 @@ to enumerate literals — we list strings and diff ourselves.
   sbarController's 6 fns (0x401680..0x4019A0); bound-object val* word
   semantics; scaleQuad factor source global; C1: detach counterpart
   (+0x8C?), list dtor ownership.
+- **Batch D-late scrollbar closure — DONE (2026-11-24, doc 17 §21, doc 19 §7)**:
+  MODEL CORRECTION — 0x48E000 is a shared CLASS object (g_sbarClass,
+  "MySB"), not a stateful controller (memCopy(0x48E000, 0x4660C4 VUU!
+  skeleton, 0xC4) + 6 overrides; flag 0x48E0C4 = class-init).
+  subWidgetCtor (0x408F10) decoded: raw/scaled quads from anchor+0x0C,
+  state/flagByte from flags, attach via class+0x88. val* words CONFIRMED:
+  value=250 / max=500 / thumbNum=50 / thumbDen=100 (thumb = ½ track).
+  Full geometry decoded: sbarRectsCompute (part selection from
+  appearanceObj +0x288/+0x28C/+0x298 h, +0x2D4/+0x2D8/+0x2E4 v; margins
+  = C-blob part+0x10..0x13; min-size gate; narrow/wide cap halves;
+  thumbLen = max(FISTP(trackLen·tn/td), minThumb); thumbX1 =
+  trackStart + FISTP((trackLen−thumbLen)·value/max)), sbarHitTest
+  states 0..7 + jump table 0x4530E8 (states 1,3 Δ−, 2,4 Δ+, 5–7 drag;
+  wide-case inner-strip inversion = original quirk),
+  sbarPressResolve/sbarValueFromPointer exact pointer↔value math (FISTP,
+  round-trip consistent), sbarValueOffset clamp, auto-repeat timer
+  (Win32 windowless; 200ms → first tick rearm 35ms → 2 steps total;
+  oneShot kill; global list 0x466C10 via listAppend/listRemove).
+  styleCtx @0x46691C pinned (sbar metrics +0x98/+0x9A/+0x9C at
+  0x4669B4/6/8; S1 fields at +0x34..+0x76; 5×7 metrics @+0x78).
+  scaleQuad EXACT: dst = src·gScaleNum/gScaleDen (i32, signed; num/den
+  = u8 @0x466991/92 from HAP header 0x0C/0x0D — D-late question
+  RESOLVED). appearanceObj extended 608B → 744B (0x2E8).
+  Ghidra: 22 renames, 20 protos, 21 comments, 5 structs (1 replaced:
+  sbarBindObj; 1 renamed: sbarClassObj; 3 new), 1 data type applied;
+  project saved.
+- **Batch D-late remaining (reduced list)**:
+  1. sldrValueFromPointer vertical branch (0x42C070) exact start/span +
+     sldrRender vertical branch (0x42BAC1) — §5 of the D-late brief.
+  2. mbarSlotGeometry (0x42EB30) internals — §6.
+  3. State bit 0x04 writer; 0x02/0x20 consumer audit — §6.
+  4. C1: detach counterpart (+0x8C?), list dtor ownership, remaining
+     widgetInstantiate arg semantics — §6.
+  5. 0x401680 (sbarMethCancelTimer) triggering framework event — minor.
+  6. `flags & 1` tiled branch = secondary-mode C-blob? — Batch G.
+  Then proceed to **Batch E** (appearance lifecycle) — owner-approved.
+  E anchors: 26 g_appCurrent consumers (0x41DC25, 0x429DAE, 0x429E9D,
+  0x42A185, 0x42A20B, 0x42A789, 0x42A8DE, 0x42AB3B, 0x42AC42, 0x42AD84,
+  0x42B6FE, 0x42B861, 0x42BD20, 0x42C2DE, 0x42C422, 0x42C611, 0x42CA4B,
+  0x42CDA8, 0x42CF07, 0x42D09E, 0x42D736, 0x42DCBE, 0x42DF5D, 0x42E434,
+  0x42E83E, 0x42E925); g_appFallback consumer 0x428D1D; appearanceReset-
+  Default/skinInstall (0x428C70)/appearanceLoadInstall (0x402FA0)/
+  hapParse (0x402900)/hapLoadEntry (0x4036B0); styleColorGet (0x42A140,
+  54 roles); inkBlitCore (0x44DFE0); gStyleStrA/B (0x466974/0x46697C);
+  0x40F220/0x41D390 (skinApply chain); assembly table 0x466DD4.

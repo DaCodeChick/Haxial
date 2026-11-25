@@ -755,3 +755,41 @@ partOff[131] entries → gApp + bswap32(off) → C-blob (width/height u16BE
 discovered in D1+D2 and S1's C-blob/9-slice pipeline are the same objects.
 The standard partDraw path is a horizontal 3-slice (capL/center/capR);
 slider track/thumb parts are 1-D parts drawn this way.
+
+## S2 D-late scrollbar closure (2026-11-24; doc 17 §21, doc 19 §7)
+
+**Model correction:** the D-late "shared 196-B stateful sbarController"
+entry above is SUPERSEDED — 0x48E000 is a shared **class object**
+(method table), stateless; built once by `memCopy(0x48E000, 0x4660C4
+VUU! skeleton, 0xC4)` + overrides (evidence: sbarBindCreate bytes).
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x48E000 g_sbarController → **g_sbarClass** | data rename | sbarClassObj applied at 0x48E000 |
+| 0x48E0C4 g_sbarControllerInit → **g_sbarClassInit** | data rename | class-init flag byte |
+| 0x408F10 → **subWidgetCtor** | rename+proto+comment | (size, srcQuad, parentWidget, flags); raw quad := *srcQuad, scaled := scaleQuad; state/flagByte from flags; attach via [parentClass+0x88]; classObj := 0x4660C4 (overwritten by caller) |
+| 0x401700 → **sbarValueOffset** | rename+proto+comment | value = clamp(value+Δ, 0, max); refresh on change |
+| 0x401750 → **sbarTimerTick** | rename+proto+comment | auto-repeat cb: state1/2 → first-tick rearm 35ms + Δ±30/±100 (pageMode +0x49) |
+| 0x41DBD0 → **sbarRectsCompute** | rename+proto+comment | part rects 0x74B + orientFlag; thumb formulas (doc 19 §7); appearance +0x288/+0x28C/+0x298/+0x2D4/+0x2D8/+0x2E4; styleCtx +0x98/+0x9A/+0x9C |
+| 0x41E6B0 → **sbarHitTest** | rename+proto+comment | states 0..7 (whole/4 cap-strip rects/3 track-thumb rects) |
+| 0x41E510 → **sbarPressResolve** | rename+proto+comment | (quad, params, ptr, outValue) → grabOffset |
+| 0x41E5F0 → **sbarValueFromPointer** | rename+proto+comment | value = round(clamp(ptr−grab) span-math × max) |
+| 0x401680 → **sbarMethCancelTimer** | rename+proto+comment | class slot +0x10: timerDestroy(&obj+0x44) |
+| 0x4016A0 → **sbarMethPaint** | rename+proto+comment | class slot +0x1C: labelMarkerDraw(ctx, quad, &params) |
+| 0x4017E0 → **sbarMethPress** | rename+proto+comment | class slot +0x20: hit-test state machine (table 0x4530E8) |
+| 0x401970 → **sbarMethRelease** | rename+proto+comment | class slot +0x24: timerDestroy + stateIdx=0 |
+| 0x4019A0 → **sbarMethMove** | rename+proto+comment | class slots +0x28/+0x2C: drag move (state 7) |
+| 0x41C560 → **timerCreate** | rename+proto+comment | (cb, ctx, ms, oneShot) → 24B obj; SetTimer(NULL,0,ms,0x41C4F0); list 0x466C10 |
+| 0x41C600 → **timerDestroy** | rename+proto+comment | (&slot): validate, KillTimer, listRemove, memFree(&slot) |
+| 0x41C670 → **timerReset** | rename+proto+comment | (obj, ms, oneShot): KillTimer + SetTimer + re-list |
+| 0x41C4F0 → **timerMsgProc** | rename+proto+comment | winproc (RET 0x10); oneShot → timerOneShotStop then callback |
+| 0x41C710 → **timerOneShotStop** | rename+proto+comment | KillTimer + listRemove (no free) |
+| 0x44C870 → **dtoiRound** | rename+proto+comment | double→int32 FISTP-based; NaN→−1 |
+| 0x414D80 → **listAppend** | rename+proto | generic stride list {first,last,stride,count} |
+| 0x414E00 → **listRemove** | rename+proto | same; 1/0 return |
+| sbarBindObj | struct (replaced) | 76 B full field map (+0x38 value, +0x3A max, +0x3C thumbNum, +0x3E thumbDen, +0x40 stateIdx, +0x42 grabOffset, +0x44 timerObj, +0x48 firstTick, +0x49 pageMode) |
+| sbarController → **sbarClassObj** | struct (replaced+renamed) | class object layout (tag/size/initFn/6 overrides/defaults/stateNotify/attach+0x88) |
+| sbarGeomParams | struct (new) | 16 B {flag@0, stateIdx@4, value@8, max@0xC, thumbNum@0x10, thumbDen@0x14} |
+| sbarRects | struct (new) | 0x74 B: whole + part1..part6 (16B corner rects) + orientFlag@0x70 |
+| styleCtx | struct (new, DTM only) | 157 B @0x46691C layout; not applied over named g_* globals |
+| appearanceObj | struct (replaced) | 608 B → **744 B (0x2E8)**: +0x288 hSbarPartLarge, +0x28C hSbarPartSmall, +0x298 hSbarThumbPart, +0x2D4 vSbarPartLarge, +0x2D8 vSbarPartSmall, +0x2E4 vSbarThumbPart (all bswap32) |

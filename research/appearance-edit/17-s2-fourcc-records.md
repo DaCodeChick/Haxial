@@ -1705,3 +1705,168 @@ Parameter audit (per-function gate, this batch):
   shared scrollbar behavior methods — D-late/E.
 - Confirm the `flags & 1` tiled branch is the "secondary-mode" C-blob
   path (doc 14 §1 flags 2/4/8) vs. a distinct tile mode — D-late.
+
+## 21. Batch D-late — scrollbar subsystem closure (2026-11-24)
+
+Full geometric specification: **doc 19 §7**. This section records the
+model correction and the code-level evidence.
+
+### 21.1 Model correction (supersedes doc 17 §20 "controller" model)
+
+The 196-B object at 0x48E000 is **not a shared stateful controller**.
+`MEMCPY`-level evidence from `sbarBindCreate` (0x4015B0, bytes
+re-verified this session):
+
+```
+if (!g_sbarClassInit @0x48E0C4):
+    g_sbarClassInit = 1
+    memCopy(0x48E000, 0x4660C4, 0xC4)   ; VUU! base-class skeleton
+    [0x48E000] = 0x4D795342             ; tag "MySB"
+    [0x48E008] = 0x4C                   ; instance size
+    [0x48E010] = 0x401680  [0x48E01C] = 0x4016A0
+    [0x48E020] = 0x4017E0  [0x48E024] = 0x401970
+    [0x48E028] = 0x4019A0  [0x48E02C] = 0x4019A0
+```
+
+- 0x48E000 = **shared class object** `g_sbarClass` (method table;
+  stateless). `0x409BC0` (called just before the copy) returns
+  `0x4660C4` — the documented VUU! base class (doc 17 §6) — the copy
+  source. (Prior note "0x409BC0 = controller size fn" was a misread:
+  it is a one-address getter, and the 0xC4 size literal is pushed
+  separately at 0x4015C0.)
+- The 76-B bound object is a **widget instance** (magic 0x5655D881)
+  whose `classObj` = g_sbarClass; all state lives in the instance
+  (fields +0x38..+0x49, doc 19 §7).
+- Ghidra: struct `sbarController` → replaced/renamed `sbarClassObj`;
+  `g_sbarController`/`g_sbarControllerInit` → `g_sbarClass`/
+  `g_sbarClassInit`; type applied at 0x48E000.
+
+### 21.2 `subWidgetCtor` (0x408F10) — bound-object ctor (CONFIRMED)
+
+`(size, srcQuad, parentWidget, flags)` — closes §20.5 item 1:
+
+- `memAllocZeroed(max(size, 0x38))`; magic 0x5655D881.
+- Raw quad `obj+0x0C..+0x18 := *srcQuad`; scaled quad
+  `obj+0x1C..+0x28 := scaleQuad(srcQuad)`. (The 4-dword copy source is
+  the anchor's raw quad — `sbarBindCreate` passes `anchor+0x0C`.)
+- `state @+0x34 = 1 | (flags&0x100 ? 0x08 : 0) | (flags&0x200 ? 0 : 0x10)`;
+  `flagByte @+0x36 = flags&0x400 ? 0x20 : 0`; `b37 @+0x37 = flags & 0xFF`.
+- Parent attach via class slot +0x88 (`[parentClass+0x88](obj, parent)`),
+  requiring the attach fn to exist (hError 0x10002 otherwise);
+  `obj+0x08 = parent`.
+- `obj+0x04 = 0x4660C4` initially; `sbarBindCreate` overwrites with
+  g_sbarClass.
+- prvwCtor call pattern (8 sites, 0x40203F..0x402137):
+  `sbarBindCreate([win+0x40] /*root container*/, anchor+0x0C,
+  0x100|0x300)`; result replaces the anchor pointer in the window slot
+  (0x78/0x7C/0x80/…/0x94).
+
+### 21.3 The four default words (CONFIRMED — closes §20.5 item 2)
+
+`+0x38 value=250, +0x3A max=500, +0x3C thumbNum=50, +0x3E thumbDen=100`
+(proven NOT "range/value/min/max pairs"):
+
+- `sbarValueOffset` (0x401700): `value = clamp(value + Δ, 0, max)` —
+  so +0x38 = value, +0x3A = max (Δ = ±30 line / ±100 page, hardcoded).
+- `sbarRectsCompute` (0x41DBD0): `thumbLen =
+  max(round(trackLen * thumbNum/thumbDen), minThumb)` — so +0x3C/+0x3E
+  are the thumb-length ratio (defaults: thumb = ½ track).
+- value/max = ½ → thumb starts mid-track.
+
+### 21.4 The six "controller fns" (CONFIRMED — closes §20.5 item 3)
+
+Class method overrides (not a stateful controller): +0x10
+`sbarMethCancelTimer` (timerDestroy(&obj+0x44)); +0x1C `sbarMethPaint`
+(labelMarkerDraw with packed params); +0x20 `sbarMethPress` (hit-test
+state machine; jump table 0x4530E8: states 1,3 → Δ−, states 2,4 → Δ+,
+states 5–7 → drag start + timerCreate); +0x24 `sbarMethRelease`
+(timerDestroy + stateIdx=0); +0x28/+0x2C `sbarMethMove` (duplicate;
+drag move via `sbarValueFromPointer` with grabOffset, state 7 only).
+
+Geometry fns (all take the bound quad `obj+0x1C` + 4-word params):
+`sbarRectsCompute` 0x41DBD0, `sbarHitTest` 0x41E6B0,
+`sbarPressResolve` 0x41E510, `sbarValueFromPointer` 0x41E5F0.
+Paint fn `labelMarkerDraw` 0x41E8A0 (S1 name preserved — also called by
+`labelWidgetFill` 0x4101C0, so it is a shared draw primitive).
+
+Timer API (Win32 windowless message timers): `timerCreate` 0x41C560
+(24-B object, magic 0x1F0D2B21, SetTimer(NULL,0,ms,0x41C4F0), global
+list 0x466C10), `timerDestroy` 0x41C600 (via &slot; memFree),
+`timerReset` 0x41C670 (KillTimer + SetTimer), `timerMsgProc` 0x41C4F0
+(RET 0x10; oneShot → `timerOneShotStop` 0x41C710 then callback),
+`dtoiRound` 0x44C870 (double→int, FISTP-based, NaN→−1). Generic list
+helpers: `listAppend` 0x414D80 / `listRemove` 0x414E00 (listObj
+{first,last,stride,count}; the S1 doc list at 0x45F820 uses stride
+0x28 — same helpers).
+
+### 21.5 Style context + scale bridge (Batch E input)
+
+`sbarRectsCompute` reads three u16 metrics at 0x4669B4/0x4669B6/0x4669B8
+= `styleCtx` @0x46691C +0x98/+0x9A/+0x9C (minThumb / thumbAdd /
+orientation-size threshold). This pins the S1 context globals into one
+struct (created `styleCtx`, 157 B, not applied over the named globals):
++0x34 g_appFallback, +0x38 g_appCurrent, +0x3C gStyleDColorsFallback,
++0x54 gInkFSize, +0x68 gInkG, +0x6C gInkGSize, +0x75 gScaleNum,
++0x76 gScaleDen, +0x78..+0x95 metrics[35] (5×7, S1), +0x98..+0x9C
+sbar metrics. `scaleQuad` (0x429C70) decoded exactly:
+`dst[i] = (i32)(src[i] * gScaleNum / gScaleDen)` (signed; the D-late
+"scale factor source" question is RESOLVED — S1 doc 13 ties num/den to
+HAP header bytes 0x0C/0x0D).
+
+Appearance object: `sbarRectsCompute` loads bswap32 part offsets at
++0x288/+0x28C/+0x298 (horizontal: large/small/thumb) and
++0x2D4/+0x2D8/+0x2E4 (vertical: large/small/thumb) — **beyond the
+partOff[131] table end (+0x24C) and beyond the previously applied 608-B
+struct**. `appearanceObj` extended to 744 B (0x2E8). The 131-part vs
+512-slot reconciliation and the full field map are Batch E §9 (26
+g_appCurrent consumers located: 0x41DC25, 0x429DAE…0x42E925).
+
+### 21.6 Ghidra mutations (this sub-batch, all read-back verified)
+
+- Renames (22): 20 functions (subWidgetCtor, sbarValueOffset,
+  sbarTimerTick, sbarRectsCompute, sbarHitTest, sbarPressResolve,
+  sbarValueFromPointer, sbarMeth{CancelTimer,Paint,Press,Release,Move},
+  timerCreate, timerDestroy, timerReset, timerMsgProc, timerOneShotStop,
+  dtoiRound, listAppend, listRemove) + 2 data (g_sbarController →
+  g_sbarClass, g_sbarControllerInit → g_sbarClassInit; target_type
+  "data" — "variable" is rejected by the tool for data items).
+- Prototypes (20): all of the above functions (plain C signatures;
+  `__cdecl`/`__stdcall` keywords are rejected by
+  set_function_prototype).
+- Comments (21): all renamed functions + sbarBindCreate (replaced).
+- Structs: sbarBindObj (76 B, replaced — full field map),
+  sbarController → sbarClassObj (class object layout, renamed),
+  sbarGeomParams (16 B, created), sbarRects (0x74 B, created),
+  styleCtx (157 B, created — DTM only, not applied over named globals),
+  appearanceObj (744 B, replaced/extended).
+- Data (1): sbarClassObj applied at 0x48E000 (renamed g_sbarClass).
+- Note: `uint[0x38]` in C definitions = 0x38 dwords (224 B) — caught
+  and fixed in appearanceObj (pads use decimal counts).
+
+Parameter audit (per-function gate, this sub-batch):
+- **fully enriched:** sbarBindCreate (3 args re-verified at all 8
+  prvwCtor call sites), subWidgetCtor (4 args — all traced into body),
+  sbarValueOffset (2), sbarTimerTick (1), sbarRectsCompute (3 — quad
+  corner form, params, 0x74-B out all verified), sbarHitTest (3),
+  sbarPressResolve (4), sbarValueFromPointer (4), sbarMethPress/Release/
+  Move/Paint/CancelTimer (2 — obj + evt/ctx; evt offsets +0x0C/+0x10/
+  +0x18 verified in sbarMethPress), timerCreate (4), timerDestroy (1),
+  timerReset (3), timerMsgProc (4 — winproc), timerOneShotStop (1),
+  dtoiRound (1), listAppend (2), listRemove (2).
+- **deferred:** the framework event that triggers class slot +0x10
+  (sbarMethCancelTimer); labelMarkerDraw internals (S1 scope);
+  0x452230 (dtoiRound overflow path).
+
+### 21.7 Open items (updated)
+
+Resolved this sub-batch: §20.5 items 1–3; doc 19 "scaleQuad factor
+source"; "0x408F10 bound-object ctor"; "sbarController's 6 fns";
+bound-object word semantics (250/500/50/100).
+Remaining D-late: `flags & 1` tiled-branch confirmation (Batch G);
+sldrValueFromPointer vertical branch (0x42C070) exact terms;
+mbarSlotGeometry (0x42EB30); state bit 0x04 writer; C1 remainder
+(+0x8C class slot, list dtor ownership, detach counterpart).
+Batch E: appearance object lifecycle (26 g_appCurrent consumers),
+131-vs-512 reconciliation, D-section colors (styleColorGet), E-section
+icons/ink, remaining styleCtx gaps (+0x00..+0x33, +0x40..+0x53, +0x58..
++0x67, +0x74..+0x77), v1/v2 version behavior.
