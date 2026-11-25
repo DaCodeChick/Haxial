@@ -581,15 +581,33 @@ to enumerate literals — we list strings and diff ourselves.
   Ghidra: 22 renames, 20 protos, 21 comments, 5 structs (1 replaced:
   sbarBindObj; 1 renamed: sbarClassObj; 3 new), 1 data type applied;
   project saved.
+- **Batch D-late SLDR/state/mbar closure — DONE (2026-11-24, doc 17 §22, doc 19 §5/§8)**:
+  sldrWidgetInit payload (value u32BE→+0x38, max u32BE→+0x3C, bit0→ticked
+  0x20); 35-case part dispatch (tables 0x4577C4/0x457738, flagByte&0x23);
+  render term FIST(trackLen×max/value) (value<max) else trackLen —
+  byte-verified, vertical branch matched; correction idiom proven dead.
+  **OPEN anomaly**: screenshot mid-track thumb implies value/max; held
+  open per D-late constraint (no implementation-ready claim).
+  sldrPointerToValue exact H/V formulas + clamps; sldrValueFromPointer
+  snap-band + grab offset (widget+0x40); press/move/release state bits
+  (0x40/0x80/0x100, 0x1000, flagByte bit 0 armed; cursor stubs RET-only).
+  **State bit 0x02/0x04 writer = widgetHoverState (0x413450)** via
+  widgetStateSet(mask=0x7): non-current children 0x2, current child 0x6;
+  SLDR press gate 0x06 = "pointer over this widget". mbarSlotGeometry:
+  8 sub-items per slot @+0x40, width byte +0x4, 5px pad, count +0x3D.
+  partBlitAt = generic 14-call-site blit primitive. Ghidra: 7 renames,
+  7 protos, 12 comments (read-back verified, project saved).
 - **Batch D-late remaining (reduced list)**:
-  1. sldrValueFromPointer vertical branch (0x42C070) exact start/span +
-     sldrRender vertical branch (0x42BAC1) — §5 of the D-late brief.
-  2. mbarSlotGeometry (0x42EB30) internals — §6.
-  3. State bit 0x04 writer; 0x02/0x20 consumer audit — §6.
-  4. C1: detach counterpart (+0x8C?), list dtor ownership, remaining
-     widgetInstantiate arg semantics — §6.
-  5. 0x401680 (sbarMethCancelTimer) triggering framework event — minor.
-  6. `flags & 1` tiled branch = secondary-mode C-blob? — Batch G.
+  1. SLDR max/value render anomaly — runtime trace or second build
+     (BLOCKER for SLDR implementation-ready status; evidence recorded in
+     doc 19 §5.5 / doc 17 §22.4).
+  2. State bit 0x20 consumer audit (framework-wide; SLDR audited — no
+     0x20 use; only per-function register-mediated TESTs exist, no
+     direct [mem+0x34] imm patterns in .text).
+  3. C1: detach counterpart (+0x8C?), list dtor ownership, remaining
+     widgetInstantiate arg semantics.
+  4. 0x401680 (sbarMethCancelTimer) triggering framework event — minor.
+  5. `flags & 1` tiled branch = secondary-mode C-blob? — Batch G.
   Then proceed to **Batch E** (appearance lifecycle) — owner-approved.
   E anchors: 26 g_appCurrent consumers (0x41DC25, 0x429DAE, 0x429E9D,
   0x42A185, 0x42A20B, 0x42A789, 0x42A8DE, 0x42AB3B, 0x42AC42, 0x42AD84,

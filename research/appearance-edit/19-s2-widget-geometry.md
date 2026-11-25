@@ -94,19 +94,138 @@ sbarBindObj (raw + scaled quads, classObj = g_sbarClass) → hit-test and
 pointer↔value math in `sbarRectsCompute`/`sbarValueFromPointer` → paint
 via `labelMarkerDraw` with the appearance's scrollbar C-blob parts.
 
-## 5. SLDR geometry (CONFIRMED — doc 17 §18.3, §18.5)
+## 5. SLDR geometry (CONFIRMED — D-late closure, 2026-11-24)
 
-- value @+0x38, max @+0x3C (from payload, u32BE), computed cursor @+0x40.
-- `sldrRender` takes the **corner-form** scaled quad {x1, y1, x2, y2};
-  orientation from (x2−x1) vs (y2−y1): width > height → horizontal.
-- `sldrPartLookup` picks parts by orientation + ticked flag from the
-  appearance part table (horizontal: entries 0x72/0x76 (+4 ticked);
-  vertical: 0x7E/0x82), dimension `A` = u16BE width/height of the part
-  C-blob; margins from the part's field2 bytes.
-- `sldrValueFromPointer`: pointer → value via float math
-  (round((pt − start − margins)/trackLen × span) + min), clamped, with
-  end-snap when the pointer is within `A` (thumb dimension) of an end.
-  (Exact start/span terms incl. the vertical branch 0x42C070: D-late.)
+### 5.1 Object and payload (CONFIRMED — sldrWidgetInit 0x438060, classSldr 0x467C48)
+
+`classSldr` (magic 0x534C4452 "RDSL", size 0x44): +0x0C init, +0x1C
+sldrPaint, +0x20 sldrEventPress, +0x24 sldrEventRelease, +0x28 attach,
++0x2C sldrEventMove.
+
+`sldrWidgetInit(widget, …, payload, size≥0xC)` (called by
+widgetInstantiate at 0x408A33 via class+0x0C):
+- `widget+0x38 = bswap32(payload+0)` = **value** (u32BE)
+- `widget+0x3C = bswap32(payload+4)` = **max** (u32BE)
+- if `bswap32(payload+8) & 1`: `flagByte(+0x36) |= 0x20` (**ticked**)
+
+prvw SLDR payloads (12 B each, raw bytes verified): all value=50,
+max=100; ticked on v3/v4/h5/h6. `valueStruct` passed to paint/press =
+`{flagByte(u32), value, max}` (built by sldrPaint 0x438160 and
+sldrEventPress — both call sites verified).
+
+### 5.2 Part dispatch (CONFIRMED — sldrRender 0x42B820)
+
+- quad = scaled **corner form** {x1,y1,x2,y2}; empty (x2≤x1 || y2≤y1)
+  → no-op; orientation = (x2−x1) > (y2−y1).
+- `n = flagByte & 0x23` (35 cases; jump tables 0x4577C4 horiz /
+  0x457738 vert):
+  - horiz (track, thumb): n=1:(0x70,0x78) n=2:(0x6F,0x77) n=3:(0x6E,0x76)
+    n=4:(0x70,0x74) n=5:(0x6F,0x73) else:(0x6E,0x72)
+  - vert (track, thumb): n=1:(0x7C,0x84) n=2:(0x7B,0x83) n=3:(0x7A,0x82)
+    n=4:(0x7C,0x80) n=5:(0x7B,0x7F) else:(0x7A,0x7E)
+- partPtr = `gApp + bswap32(partOff[idx])` (table @gApp+0x40); if the
+  offset is 0, retry with `g_appFallback` (doc 17 §18.5).
+- Built-in part dims (blob B C-section slot values, raw bytes read this
+  session): track h 110 = 5×7 ext caps(2,0,2,0) **insets(5,0,5,0)**;
+  thumb h 114 = 14×16; track v 122 = 7×5 ext caps(0,2,0,2)
+  insets(0,5,0,5); thumb v 126 = 16×14; the 112–116/118–120/124/128–130
+  groups are the other states/ticked variants (14×16 or 16×14 thumbs).
+
+### 5.3 Render geometry (CONFIRMED from disassembly; anomaly in §5.5)
+
+Horizontal (w > h):
+- track: `partDraw(ctx, &{x1, (y1+y2−partH)/2, x2, (y1+y2+partH)/2}, trackPart)`
+  — full-width strip, partH = bswap16(part+2), vertically centered.
+- `trackLen = (x2−x1) − (thumbW + trackPart[0x10] + trackPart[0x12])`;
+  if `trackLen < 0` the thumb is skipped.
+- thumb term: `term = FIST(trackLen × max / value)` (x87 double math +
+  FIST banker's rounding; the trailing FST/FSUBP/ADD/SBB "correction"
+  idiom is a **proven no-op** — dead code for all reachable fractions)
+  when `value < max`; else `term = trackLen`.
+- thumb: `partBlitAt(ctx, x1 + trackPart[0x10] + term, (y1+y2−thumbH)/2 − thumbPart[0x11], thumbPart)`
+  (partBlitAt 0x429BE0 — generic 14-call-site blit-at-point primitive).
+
+Vertical (h ≥ w): mirrored. Track via 0x429A20 (vertical partDraw) at
+horizontal center `(x1+x2−thumbW)/2`… (track part 122: 7 wide × 5 tall,
+insets 0,5,0,5). `trackLen = (y2−y1) − (thumbH + trackPart[0x10] + trackPart[0x12])`.
+Thumb: `partBlitAt(ctx, centerX − thumbPart[0x10] …, y2 − thumbPart[0x13] − term − thumbH − …, thumbPart)`
+with the **same** `term = FIST(trackLen × max / value)` (value<max) —
+vertical branch 0x42BC6F–0x42BCD1 disassembly-matched to the horizontal.
+
+### 5.4 Pointer → value (CONFIRMED — sldrPointerToValue 0x42C150)
+
+Called by sldrEventPress (via sldrValueFromPointer's else path, with
+half-band `outC/2`) and **directly** by sldrEventMove (with
+`grabOffset = widget+0x40`, the press-time offset).
+
+- Re-derives outA/outB/outC via sldrPartLookup (appearance part bytes;
+  fallback defaults 5/5/13 or 5/5/15 when ticked).
+- Horizontal: `p = *ptPtr`; bounds `[x1+outC, x2−outB−outA]`; if
+  `p − grab ≤ lo` → **0**; if `p − grab ≥ hi` → **max**; else
+  `round((p − grab − lo) × max / (hi − lo))` (x87 double + dtoiRound).
+- Vertical: pointer y is at `ptPtr+4`; the half-band is **negated**
+  (−outC/2); bounds mirror from the top (`y2−outB`, `y1+outC+outA`);
+  value increases toward the top. Same value math, clamped to [0, max].
+
+`sldrValueFromPointer` (0x42BF20) adds the snap layer: `computed =
+x1 + outA + FIST(trackLen′ × max / value)` (same term as render, §5.5);
+if `computed ≤ *pt < computed + outC` the pointer is "on the thumb" →
+*out = old value (no change); else *out = sldrPointerToValue(…, outC/2).
+Return = `*pt − computed` (or outC/2) → widget+0x40 (drag anchor).
+
+### 5.5 The max/value anomaly (OPEN — code CONFIRMED, runtime unverified)
+
+The render term and the snap "computed" position use **max/value**, not
+value/max. For any value < max the term exceeds trackLen, so the thumb
+is placed **past the right (top) track end — outside the widget** (built-in
+50/100 → 2×trackLen). Verified four independent ways: Ghidra
+disassembly, manual byte decode of 0x42BA4E–0x42BA77 (DF F1 = FDIVRP
+on [value, max] → max/value), the vertical branch (identical), and the
+proven-dead correction idiom. The press mapping (§5.4) is the normal
+value/max mapping — so **render and press are asymmetric in the
+original**.
+
+Screenshot cross-check (ui-builtintheme/sliders.png, post-interaction
+prvw state, pixel-level analysis this session): the h3 thumb sits at
+the track's right end (the value≥max render position under either
+reading); the v1 thumb sits mid-track, a position only the value/max
+mapping can produce (implied value ≈ 1/3 — reachable by drag), which
+the code's max/value term cannot produce for any value ≤ 100 (it would
+need value ≈ 300, unreachable — the press clamps to [0, max]).
+
+Unresolved: (a) post-interaction values are unknown without a runtime
+capture; (b) the screenshot may predate the analyzed build. Recorded as
+the batch's open item — a runtime trace (or a second build) is the
+cheapest resolution. Per the D-late constraint, the slider geometry is
+**not** marked implementation-ready while this remains open.
+
+### 5.6 Interaction state machine (CONFIRMED)
+
+- **Press** (sldrEventPress, kind 1/2/3): OR state+0x34 ← 0x40/0x80/
+  0x100 (pressed-with-button-N). Gated on `state & 0x10` AND
+  `state & 0x06` (the hover bits, §5.7). Then: value via
+  sldrValueFromPointer; flagByte |= 1 (armed); refresh; if changed:
+  state |= 0x1000 (changed marker) + widgetSendMsg(eventId 3).
+- **Move** (sldrEventMove, while flagByte & 1): sldrPointerToValue with
+  grab = widget+0x40; update/refresh/message as press (no snap layer).
+- **Release** (sldrEventRelease, matching kind): clear the 0x40/0x80/
+  0x100 bit; if armed: flagByte &= ~1, refresh.
+- Cursor calls at press/release are **RET-only stubs**
+  (stubCursorSet/stubCursorRestore 0x42D170/0x42D180) — no runtime
+  cursor feedback in this build.
+
+### 5.7 State bits 0x02/0x04 — writer found (CONFIRMED)
+
+`widgetHoverState` (0x413450, renamed this session) is the writer:
+(widget, newState, oldState) over the widget's child array (+0x38/+0x3C)
+with current-child pointer +0x44; all writes via
+`widgetStateSet(mask=0x7)` — i.e. state bits 0/1/2 are rewritten as a
+group: value 0x2 (hovered/set) for non-current children, **0x6
+(0x02|0x04) for the current (under-pointer) child**, (old&7) on exit.
+So bit 0x04 is always set together with 0x02 on the hovered widget —
+SLDR's `state & 0x06` press gate means "the pointer is over this
+slider". Consumers of 0x02: the same press gates in the widget event
+handlers (SLDR here; the button equivalents use the same pattern).
 
 ## 6. Appearance part → C-blob mapping (CONFIRMED — doc 17 §20)
 
@@ -285,7 +404,30 @@ Slider parts are 1-D elements (track, thumb) drawn by the 3-slice path;
 - value == max: thumb pinned at trackEnd − thumbLen (the value→position
   formula yields exactly that; no special case).
 
-## 8. Rust-reimplementation implications
+## 8. Menu-bar slot geometry (CONFIRMED — D-late closure, 2026-11-24)
+
+`mbarSlotGeometry(mbarSub, slotIdx, outRect{ x, y, w, h })` (0x42EB30,
+renamed + prototyped this session). mbarSub = the MBAR child object
+(magic 0x455E0FD3, 192 B, doc 17 §14).
+
+- `slotIdx ≥ byte[mbarSub+0x3D]` (slot count) → outRect zeroed, return 0.
+- `y = [mbarSub+0x08]`, `h = [mbarSub+0x10]` (the menu bar's own y/height
+  fields — the same quad slots as the menuBarQuad).
+- `x = [mbarSub+0x04] + 5` (constant 5 px left pad) + Σ byte widths of the
+  sub-item pointers **before** the slot; `w =` Σ byte widths of the slot's
+  own sub-items.
+- Sub-item pointers live at `mbarSub+0x40`, **8 pointers per slot**, each
+  pointing to a sub-object whose **byte at +0x4 is the item width**.
+- Return 1 on success.
+
+So the menu bar lays out **groups of 8 menu items per slot**: slot k
+spans x = x0 + 5 + Σ_{j<k}(Σ_i w[j,i]) .. + Σ_i w[k,i]. The width bytes
+are the per-item label widths measured at menu-build time (the same
+values the %MNU items carry — Batch B2). This 8-per-slot grouping is
+unrelated to the 512-entry C-section part pool (Batch E reconciliation
+stands open).
+
+## 9. Rust-reimplementation implications
 
 - Geometry pipeline: serialized u16s → i32 raw → scaled (one scaleQuad)
   → paint in scaled space. Keep raw and scaled separate (resize/repaint).
@@ -300,7 +442,7 @@ Slider parts are 1-D elements (track, thumb) drawn by the 3-slice path;
 - Message flow: value changes bubble to the parent's class+0x9C handler
   (widgetSendMsg, 44-B message, eventId 3 = slider value-changed).
 
-## 9. Verification status
+## 10. Verification status
 
 | Claim | Basis |
 |---|---|
@@ -321,9 +463,13 @@ Slider parts are 1-D elements (track, thumb) drawn by the 3-slice path;
 | appearanceObj ≥ 0x2E8 with sbar part offsets | code (sbarRectsCompute bswap32 loads at +0x288..+0x2E4) — CONFIRMED; full field map = Batch E |
 | All 6 windows: %REZ → VWIN descriptor → window-own payload → childBase → instance slots | `tools/research/geo_check.py` (scripted, static data) — ALL OK, prvw payload 0x01100 exact |
 | §7 scrollbar geometry formulas (degenerate cases, min gates, thumb formulas, endpoint snapping, hit-test, round-trips, scale truncation) | `tools/research/sbar_check.py` (scripted invariants of the code-decoded model) — ALL OK (165 checks); model is executable-derived, not rendering-corroborated |
+| §5 SLDR payload/init, part dispatch (35 cases), render term, pointer→value, interaction states, hover-bit writer, mbar slots | code disassembly (sldrRender/sldrValueFromPointer/sldrPointerToValue/sldrEventPress/Move/Release/sldrWidgetInit/widgetHoverState/mbarSlotGeometry) + raw payload bytes — CONFIRMED; the max/value render term is runtime-unverified (§5.5) |
 
-Open (D-late remainder / E): sldrValueFromPointer vertical branch exact
-start/span (0x42C070), mbarSlotGeometry (0x42EB30) internals, state bit
-0x04 writer, +0x8C class slot, list dtor ownership (C1), appearance
+Open (D-late remainder / E): the SLDR render max/value term is
+runtime-unverified (screenshot mid-track thumb the code cannot produce;
+needs a runtime trace or second build) — held open per the D-late
+constraint, SLDR geometry NOT implementation-ready. C1 items: +0x8C
+class slot, list dtor ownership, detach counterpart. Batch E: appearance
 object lifecycle + 131-vs-512 reconciliation + D/E-section consumers
-(Batch E; 26 g_appCurrent consumers located at 0x41DC25–0x42E925).
+(26 g_appCurrent consumers located at 0x41DC25–0x42E925). LSTS row
+heights in scaled units: unverified (Batch C).

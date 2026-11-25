@@ -793,3 +793,32 @@ VUU! skeleton, 0xC4)` + overrides (evidence: sbarBindCreate bytes).
 | sbarRects | struct (new) | 0x74 B: whole + part1..part6 (16B corner rects) + orientFlag@0x70 |
 | styleCtx | struct (new, DTM only) | 157 B @0x46691C layout; not applied over named g_* globals |
 | appearanceObj | struct (replaced) | 608 B → **744 B (0x2E8)**: +0x288 hSbarPartLarge, +0x28C hSbarPartSmall, +0x298 hSbarThumbPart, +0x2D4 vSbarPartLarge, +0x2D8 vSbarPartSmall, +0x2E4 vSbarThumbPart (all bswap32) |
+
+## S2 D-late — SLDR closure, state bits 0x02/0x04, menu-bar slots (2026-11-24; doc 17 §22, doc 19 §5/§8)
+
+Evidence: disassembly (sldrRender 0x42B820, sldrValueFromPointer 0x42BF20,
+sldrPointerToValue 0x42C150, sldrEventPress/Move/Release 0x4381A0/0x4382F0/
+0x438290, sldrWidgetInit 0x438060, widgetHoverState 0x413450,
+mbarSlotGeometry 0x42EB30, partBlitAt 0x429BE0 — 14 call sites); raw prvw
+SLDR payload bytes (10 × 12B, value=50 max=100); blob B C-section part
+dims (slots 110–130); screenshot pixel analysis (ui-builtintheme/
+sliders.png). All read-back verified; project saved.
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x42C150 FUN_0042c150 → **sldrPointerToValue** | rename+proto+comment | (quad, valueStruct, ptPtr, grabOffset) → new value; clamp [0,max]; H: [x1+outC, x2−outB−outA], V mirrored from top w/ negated half-band; round((p−grab−lo)×max/(hi−lo)) |
+| 0x4382F0 FUN_004382f0 → **sldrEventMove** | rename+proto+comment | classSldr+0x2C; armed-only; drag value math w/ grab=+0x40; state\|=0x1000 + msg 3 on change |
+| 0x438290 sldrHandler24 → **sldrEventRelease** | rename+proto+comment | classSldr+0x24; clears 0x40/0x80/0x100 by kind; disarms flagByte bit 0 |
+| 0x429BE0 FUN_00429be0 → **partBlitAt** | rename+proto+comment | generic blit-part-at-point (14 call sites); cBlobHeaderDecode + bmpBlitAlpha (part flag bit 0) / bmpBlitToSurface |
+| 0x413450 FUN_00413450 → **widgetHoverState** | rename+proto+comment | (widget, newState, oldState); child array +0x38/+0x3C, current child +0x44; writes 0x2 / 0x6 via widgetStateSet(mask=0x7) — the 0x02/0x04 writer |
+| 0x42D170 FUN_0042d170 → **stubCursorSet** | rename+comment | RET-only stub (cursor feedback placeholder) |
+| 0x42D180 FUN_0042d180 → **stubCursorRestore** | rename+comment | RET-only stub |
+| sldrValueFromPointer | proto+comment | 4 params (quad, valueStruct, ptPtr, out); snap-band logic; returns grab offset; max/value "computed" term (anomaly) |
+| sldrEventPress / sldrRender / sldrWidgetInit | comment | state-bit flow + gate (0x10 & 0x06); 35-case dispatch tables 0x4577C4/0x457738; payload layout |
+| mbarSlotGeometry | proto+comment | (mbarSub, slotIdx, outRect); 8 sub-items per slot @+0x40, width byte +0x4; 5px pad; count +0x3D |
+| no new structs | — | sldrWidgetObj (68B) and mbarSubObj (192B) already exist; valueStruct = ad-hoc {flagByte, value, max} documented in comments |
+
+Open: the render/snap term `FIST(trackLen × max / value)` is code-CONFIRMED
+(byte-verified 0x42BA4E–0x42BA77 + vertical branch; correction idiom
+proven dead) but runtime-unverified — screenshot mid-track thumb implies
+value/max. Held open (no implementation-ready claim for SLDR geometry).

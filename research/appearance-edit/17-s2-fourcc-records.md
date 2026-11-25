@@ -1857,16 +1857,90 @@ Parameter audit (per-function gate, this sub-batch):
   (sbarMethCancelTimer); labelMarkerDraw internals (S1 scope);
   0x452230 (dtoiRound overflow path).
 
-### 21.7 Open items (updated)
+### 21.7 Open items (updated again in §22)
 
 Resolved this sub-batch: §20.5 items 1–3; doc 19 "scaleQuad factor
 source"; "0x408F10 bound-object ctor"; "sbarController's 6 fns";
 bound-object word semantics (250/500/50/100).
+§22 resolves: SLDR vertical branch exact terms; mbarSlotGeometry; state
+bit 0x04 writer (+ 0x02); SLDR payload/init; render and pointer→value
+formulas (with one open runtime anomaly).
 Remaining D-late: `flags & 1` tiled-branch confirmation (Batch G);
-sldrValueFromPointer vertical branch (0x42C070) exact terms;
-mbarSlotGeometry (0x42EB30); state bit 0x04 writer; C1 remainder
-(+0x8C class slot, list dtor ownership, detach counterpart).
+C1 remainder (+0x8C class slot, list dtor ownership, detach counterpart).
 Batch E: appearance object lifecycle (26 g_appCurrent consumers),
 131-vs-512 reconciliation, D-section colors (styleColorGet), E-section
 icons/ink, remaining styleCtx gaps (+0x00..+0x33, +0x40..+0x53, +0x58..
 +0x67, +0x74..+0x77), v1/v2 version behavior.
+
+## 22. Batch D-late — SLDR closure, state bits 0x02/0x04, menu-bar slots
+(2026-11-24)
+
+Full geometry write-up: doc 19 §5 (SLDR) and §8 (menu bar). Evidence:
+disassembly of sldrRender/sldrValueFromPointer/sldrPointerToValue/
+sldrEventPress/Move/Release/sldrWidgetInit (classSldr 0x467C48 slots
++0x0C/+0x1C/+0x20/+0x24/+0x2C), widgetHoverState (0x413450),
+mbarSlotGeometry (0x42EB30), partBlitAt (0x429BE0, 14 call sites);
+raw payload bytes (10 prvw SLDRs, value=50 max=100); raw part dims from
+blob B C-section slots 110–130; screenshot pixel analysis
+(ui-builtintheme/sliders.png).
+
+### 22.1 SLDR confirmed model (doc 19 §5)
+
+- payload 12B: value u32BE → +0x38, max u32BE → +0x3C, payload[8] bit0 →
+  flagByte |= 0x20 (ticked).
+- valueStruct {flagByte, value, max} built identically by paint and press.
+- 35-case part dispatch (flagByte & 0x23; tables 0x4577C4/0x457738);
+  built-in dims: track 5×7 (insets 5,0,5,0), thumb 14×16 (H); 7×5
+  (insets 0,5,0,5), 16×14 (V).
+- Render: track = full-width/height centered strip via partDraw;
+  trackLen = len − (thumbDim + trackInX + trackInY); term = FIST(trackLen
+  × max/value) (value<max) else len; thumb via partBlitAt at
+  x1 + trackInX + term (H) / mirrored (V).
+- Pointer→value (press/drag): sldrPointerToValue — clamp
+  [x1+outC, x2−outB−outA] (H; V mirrored from top, half-band negated)
+  → 0/max; else round((p−grab−lo)×max/(hi−lo)); grab = widget+0x40
+  (press offset via sldrValueFromPointer, incl. thumb snap-band of width
+  outC). Drag bypasses the snap layer.
+- Interaction states (word @+0x34): 0x40/0x80/0x100 pressed-with-button
+  1/2/3; 0x1000 changed marker; press gated on (state & 0x10) & (state &
+  0x06). flagByte bit 0 = armed. Cursor feedback = RET-only stubs
+  (0x42D170/0x42D180).
+
+### 22.2 State bits 0x02/0x04 — writer (CONFIRMED)
+
+widgetHoverState (0x413450) — (widget, newState, oldState); over the
+widget's child array (+0x38/+0x3C) + current-child pointer (+0x44);
+all writes via widgetStateSet(mask=0x7, bits∈{0x2, 0x6, old&7}):
+non-current children → 0x2, the current (under-pointer) child → 0x6
+(0x02|0x04), on exit all → (old&7). Bit 0x04 is therefore always set
+with 0x02 on the hovered widget. Consumers: press gates (SLDR and the
+button-family handlers use `state & 0x06` = "pointer over me").
+
+### 22.3 Menu-bar slots (CONFIRMED)
+
+mbarSlotGeometry: outRect{ x, y, w, h }; y/h from mbar+0x08/+0x10;
+x = mbar+0x04 + 5 + Σ widths of prior sub-items; w = Σ own sub-widths;
+sub-items = 8 pointers per slot at mbar+0x40, width = byte at +0x4 of
+each target; slot count = byte[mbar+0x3D]; 0 → zero rect, 1 → ok.
+
+### 22.4 Open (runtime anomaly)
+
+The render/snap term uses max/value (byte-verified at 0x42BA4E–0x42BA77;
+identical in the vertical branch; the trailing correction idiom proven
+dead). For value<max this places the thumb past the track end. Screenshot
+shows a mid-track v1 thumb (implied value ≈ 1/3, reachable by drag)
+which the code cannot produce for any value ≤ 100. Unresolved without a
+runtime capture or second build; SLDR geometry held NOT
+implementation-ready per the D-late constraint.
+
+### 22.5 Ghidra changes (read-back verified, project saved)
+
+Renames (7): sldrPointerToValue (0x42C150), sldrEventMove (0x4382F0),
+sldrEventRelease (0x438290, was sldrHandler24), partBlitAt (0x429BE0),
+widgetHoverState (0x413450), stubCursorSet/stubCursorRestore
+(0x42D170/0x42D180). Prototypes (7): sldrValueFromPointer (4 params),
+sldrPointerToValue, partBlitAt, mbarSlotGeometry, widgetHoverState,
+sldrEventRelease, sldrEventMove. Comments (12): sldrRender,
+sldrValueFromPointer, sldrPointerToValue, sldrEventPress/Move/Release,
+sldrWidgetInit, partBlitAt, mbarSlotGeometry, widgetHoverState,
+stubCursorSet, stubCursorRestore.
