@@ -275,3 +275,102 @@ Once-init: `if (gOncePtr == 0) { gOncePtr = 0x47B324; gOnceFlag = 0; }`
   resource entries); not needed for the install model (image-based).
 - SLDR max/value anomaly — unchanged, held open (doc 19 §5.5; owner
   directive: runtime validation checklist, Win32 S3).
+
+## 11. Section completion — E/F/G record formats + post-install (Batch E2 partial)
+
+### 11.1 E section = %IKN icon records (CONFIRMED by raw walk, built-in)
+
+Record (all 35 built-in records uniform):
+```
++0x00  u32BE  0x25494B4E  "%IKN" magic
++0x04  u16BE  0x0001 (constant across all records)
++0x06  u16BE  image/state count: 1, or 2 (E dir[5], dir[23] — multi-state)
++0x08  u16BE  width  (built-in: 10..32)
++0x0A  u16BE  height (built-in: 13..32)
++0x0C  u16BE  flags  (0x0101..0x0108; bit semantics TBD)
++0x0E  u16BE  two 8-bit values (n,n or n1,n2; semantics TBD)
++0x10  u32BE  palette count (20 or 32)
++0x14  palette: count × [00][RR][GG][BB] (LE, same encoding as C/D)
+       then index pixel data (bpp TBD — consistent with 1/2/4bpp per doc 04)
+```
+Directory: 36 entries, **dir[0] = 0 (reserved empty slot)**; icons = dir[1..35].
+Icon names are positional (gEIconNames, 155 names, doc 16 §4) — the record
+itself carries no name. E = the appearance's **icon set**; IKON widget class
+(0x468310) consumes by index (binding detail deferred to E3).
+
+### 11.2 F section = named ink records (CONFIRMED by raw walk + lookup code)
+
+Section: {u32BE count (25 incl. dummy), count × u32BE offsets, pool}.
+**dir[0] = 0x19 (dummy = count value itself)**; records = dir[1..24].
+Record:
+```
++0x00  u32BE  "%IKN" magic
++0x04  u16BE  0x0001
++0x06  u16BE  flags (0x0402 "data", 0x0502 others)
++0x08  name: null-terminated (e.g. "data", "font/")
+       u8 name-region length (13 for "data": 4+1+8 pad)
+       then embedded ink bitmap block (sub-structure TBD — E3)
+```
+Built-in names (dir 1..24): **data, font/, text/, audio/, image/, video/,
+folder/, volume/, archive/, driver/, volume/cd, volume/hd, volume/dvd,
+volume/fdd, volume/net, volume/ram, volume/cart, folder/audio,
+folder/images, data/truncated, folder/dropbox, folder/uploads,
+alias/unattached, executable/plugin, executable/program**.
+
+Name matching (inkNameLookup → searchRecords + cmpFn 0x42D370): the search
+key is a **fixed 16-byte buffer** (pstr len + chars, e.g. "folder/standard"
+= exactly 16B); cmpFn is a two-step hash compare (0x43F510 over
+{name[0:4]+off, name[4:8]−off, &byte}, gate on name[12]==byte, then
+0x43F9E0 over {name[8:12], step1-ret, byte}) — the exact hash functions are
+deferred (E3); the functional order (exact → last-'/'-prefix → built-in
+F fallback) is code-CONFIRMED.
+
+**Consequence**: "data" → gInkF = F+0x68 record. **"folder/standard" is NOT
+in the built-in F set** (no exact match; prefix "folder" ≠ "folder/";
+built-in fallback = same set) → **gInkF2 (styleCtx+0x60) = NULL for the
+built-in appearance**. Consumers must tolerate NULL (or the role only
+matters for non-built-in appearances — corpus check deferred to E3).
+
+### 11.3 G section = %MSI mouse cursors (CONFIRMED — S1-decoded, re-verified)
+
+20-entry directory, **dir[0] = 0 (dummy)**, 19 %MSI records. Format already
+fully decoded in S1: `hapMsiRecordParse` (0x4452C0; magic 0x254D5349, W/H,
+hotspot @+0x0C/+0x0D, bpp @+0x0E ∈ {2,8,32}, palette, pixels),
+`hapGSectionRead` (0x408570; slot table), `msiBlobToBmp` (0x445080 →
+hapBitmapObj). G = the appearance's **mouse cursor set** (editor "Mouse
+Icons" tab, screenshot refs/screenshots/appearance-edit/.../mouseicons.png).
+This batch's raw walk re-confirms the built-in layout (19 records, W/H
+8×12..19×19, 2/8bpp palettes).
+
+### 11.4 Post-install housekeeping (CONFIRMED, Ghidra renamed)
+
+`skinApply` (0x435030) = skinInstall (0x428C70) + **winMetricsResync**
+(0x40F220) + **cursorCacheReset** (0x41D390):
+- winMetricsResync: window object list head 0x466350 (link +0x00, hwnd +0xC):
+  per node — system metrics (4B) via 0x42E7D0(node+0x64,...) vs cached
+  node+0x8B..0x8E; on change: rect via 0x40C810(node,&r16,0,0) +
+  **SetWindowPos**(hwnd, 0, x, y, w, h, 0x14); store metrics. Then
+  **IsWindowVisible**(hwnd) → **InvalidateRect**(hwnd, NULL, FALSE).
+- cursorCacheReset: hCur = **GetCursor()**; 20-slot handle table @0x466C28:
+  non-null → DestroyCursor (remember the live one if == hCur), slot := 0;
+  0x41D400(list @0x466C20); DestroyCursor(live) if found. Cursors are
+  recreated on demand after install (they come from the G section).
+
+### 11.5 Deferrals (E2/E3 — next)
+
+1. cmpFn hash functions 0x43F510 / 0x43F9E0 (exact name-match contract).
+2. F record embedded ink bitmap block sub-structure; flags 0x0402/0x0502.
+3. E record flags +0x0C/+0x0E semantics; pixel bpp per record; dir[0]
+   reserved-slot convention rationale; IKON widget → E-index binding.
+4. G: slot table → cursor-name mapping (gMCursorNames?); %MSI field
+   semantics already S1-documented.
+5. 0x42E7D0 (metrics getter) / 0x40C810 (rect getter) / 0x41D400 (list
+   consumer) internals.
+6. styleCtx +0x00..+0x33 (per-window list? — 0x466350 region), +0x70,
+   +0xBE..+0xC7.
+7. gOncePtr table @0x47B324 consumers.
+8. 0x401000/0x401290 (doc create), 0x408720 (doc dtor — C1 "detach"
+   counterpart), 0x40C5C0 (notify), 0x41DC25.. (26 g_appCurrent consumer
+   sites — consumer matrix), hapParse full decode.
+9. Corpus: v1 E/F/G section verification (v1 layout differs — S1: v1 E =
+   155-name table); "folder/standard" presence in corpus F sections.

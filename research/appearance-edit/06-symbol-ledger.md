@@ -859,3 +859,20 @@ assumption); section map C/D/E/F/G; D = 54 (v2) / 204 (v1) color roles,
 {count, offsets, records}; lifecycle install/apply/reset/load (owner+4
 owns the installed image); D-late correction: sbar "metrics" +0x98/+0x9A/
 +0x9C = scaled-metrics matrix cells [16]/[17]/[18].
+
+## S2 Batch E2-partial — post-install + section records (2026-11-24; doc 20 §11)
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x40F220 | rename+comment | **winMetricsResync** — per-window SetWindowPos(0x14)/InvalidateRect after install (IAT: SetWindowPos/IsWindowVisible/InvalidateRect; metrics via 0x42E7D0, rect via 0x40C810) |
+| 0x41D390 | rename+comment | **cursorCacheReset** — GetCursor/DestroyCursor over 20-slot table @0x466C28 + list @0x466C20 |
+
+Findings (no further Ghidra mutation this sub-batch; all raw/data-level):
+E section = %IKN icon records (35 icons, dir[0] reserved empty; header map
+doc 20 §11.1). F section = named %IKN ink records (24 built-in names:
+data, font/, text/, audio/, image/, video/, folder/, volume/{cd,hd,dvd,fdd,
+net,ram,cart}, volume/, archive/, driver/, folder/{audio,images,dropbox,
+uploads}, data/truncated, alias/unattached, executable/{plugin,program};
+dir[0] dummy = count; 16-byte hash name match; "folder/standard" absent
+from built-in → gInkF2 = NULL). G section = 19 %MSI cursors (S1-decoded;
+re-verified).
