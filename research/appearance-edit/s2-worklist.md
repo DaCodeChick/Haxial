@@ -609,6 +609,30 @@ to enumerate literals — we list strings and diff ourselves.
   4. 0x401680 (sbarMethCancelTimer) triggering framework event — minor.
   5. `flags & 1` tiled branch = secondary-mode C-blob? — Batch G.
   Then proceed to **Batch E** (appearance lifecycle) — owner-approved.
+- **Batch E1 — DONE (2026-11-24, doc 20, Ghidra saved)**:
+  appearance object = the C section itself (skinInstall stores image
+  pointers into the styleCtx; no separate parse/alloc; owner+4 owns the
+  installed image, freed on replace). 131-vs-512 RESOLVED: 512 = fixed
+  directory capacity (all 39 corpus v1 + built-in verified), 131 =
+  Batch-D truncation assumption; partOff[146/147/150/165/166/169] are the
+  D-late "sbar fields" (appearanceObj struct corrected to 0x840 B).
+  Section map C/D/E/F/G; D = 54 (v2) / 204 (v1) roles, [00][RR][GG][BB],
+  no bswap, 14-site consumer matrix; E/F/G = named record pools
+  {count, offsets, records}; inkNameLookup (0x42D3F0) decoded incl.
+  "data"/"folder/standard" names from .rdata; full lifecycle (startup/
+  load/apply/reset; doc list 0x45F820; modified flag +0x19D). D-late
+  correction: sbar metrics +0x98/0x9A/0x9C = matrix cells [16]/[17]/[18].
+  Ghidra: 7 data renames/labels, 3 fn renames, 7 protos, 14 comments,
+  2 structs replaced + 1 new (all read-back verified).
+- **Batch E remainder (E2/E3) — PENDING**:
+  1. 0x40F220 / 0x41D390 (skinApply post-install housekeeping).
+  2. E2: E-section record layout + 155-name icon table → IKON binding
+     (doc 16); F record internals; cmpFn 0x42D370 contract; G section
+     role (20 records); inkBlitCore 0x44DFE0 runtime ink objects.
+  3. E3: gOncePtr table @0x47B324; styleCtx +0x00..+0x33, +0x70,
+     +0xBE..+0xC7; 0x401000/0x401290 (doc create), 0x408720 (doc dtor —
+     C1 "detach" adjacency), 0x40C5C0 (notify); hapParse full decode
+     (doc-model side).
   E anchors: 26 g_appCurrent consumers (0x41DC25, 0x429DAE, 0x429E9D,
   0x42A185, 0x42A20B, 0x42A789, 0x42A8DE, 0x42AB3B, 0x42AC42, 0x42AD84,
   0x42B6FE, 0x42B861, 0x42BD20, 0x42C2DE, 0x42C422, 0x42C611, 0x42CA4B,
@@ -616,5 +640,6 @@ to enumerate literals — we list strings and diff ourselves.
   0x42E83E, 0x42E925); g_appFallback consumer 0x428D1D; appearanceReset-
   Default/skinInstall (0x428C70)/appearanceLoadInstall (0x402FA0)/
   hapParse (0x402900)/hapLoadEntry (0x4036B0); styleColorGet (0x42A140,
-  54 roles); inkBlitCore (0x44DFE0); gStyleStrA/B (0x466974/0x46697C);
-  0x40F220/0x41D390 (skinApply chain); assembly table 0x466DD4.
+  54 roles); inkBlitCore (0x44DFE0); gInkF/gInkF2 (0x466974/0x46697C,
+  was gStyleStrA/B); 0x40F220/0x41D390 (skinApply chain); assembly table
+  0x466DD4.

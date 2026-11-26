@@ -88,6 +88,57 @@ time.
   do **not** create Cargo manifests, crate scaffolding, or Rust
   implementations until S2 is complete (S3 scope).
 
+### D6 — `haxial-win32` is the first backend implemented in S3
+
+(Owner-approved design decision, 2026-11-24. Not a reverse-engineering
+finding.)
+
+- **Implementation order:** `haxial-win32` is the **first** backend
+  implemented during S3, ahead of `haxial-wgpu` and `haxial-sdl`.
+- **Bindings:** it uses Microsoft's Rust **`windows` crate** for the
+  underlying Win32 platform bindings.
+- **Purpose:** to establish a **behavioral and rendering reference**
+  against the platform facilities used by the original AppearanceEdit
+  executable (GDI 32bpp top-down DIB blits, SetTimer, windowless
+  message dispatch, and the other platform calls recovered in S1/S2).
+  Haxial implements its **own toolkit behavior and custom widget
+  rendering**; the `windows` crate supplies only the platform bindings.
+- **Encapsulation:** Win32-specific types and implementation details
+  remain **encapsulated within `haxial-win32`**. They do not leak into
+  `haxial-core` or `haxial-ui`.
+- **Primary backend unchanged:** `haxial-wgpu` remains the intended
+  **primary cross-platform backend** (D3). The Win32 backend's reference
+  role does not change that.
+- **Dependency constraints unchanged:** all previously approved crate
+  dependency constraints (D1–D5, including the `haxial-compat` ↔
+  `haxial-core` constraint) remain unchanged.
+- **No premature freezing:** backend-independent contracts evolve through
+  practical implementation and validation; platform-specific assumptions
+  discovered in `haxial-win32` are **not** prematurely frozen into
+  `haxial-core`.
+- **Scope boundary:** this decision does **not** authorize
+  implementation, scaffolding, execution of the original executable, or
+  advancement into S3.
+
+## Runtime validation checklist (future — `haxial-win32`)
+
+Checklist items to validate during S3 Win32-backend implementation
+against the original executable's behavior. Derived from documented
+research findings; not research findings themselves.
+
+- **SLDR render-vs-press arithmetic discrepancy (S2 D-late, doc 19 §5.5,
+  doc 17 §22.4):** the original's slider render/snap term is
+  code-CONFIRMED as proportional to **max/value** (byte-verified at
+  0x42BA4E–0x42BA77 and the vertical branch; the trailing FPU
+  "correction" idiom proven algebraically dead), which places the thumb
+  past the track end for any value < max; the press mapping is the normal
+  value/max mapping, and screenshots show mid-track thumbs the render
+  term cannot produce. **Both the observed arithmetic and the expected
+  value/max behavior are preserved in the research record; neither is
+  selected as authoritative yet.** A Win32 runtime capture of the original
+  (or a second build) is the planned resolution. Until resolved, SLDR
+  geometry is not implementation-ready.
+
 ## Naming correspondence to recovered entities (reference, non-normative)
 
 | Recovered Haxial concept (see research/appearance-edit) | Likely modern home |

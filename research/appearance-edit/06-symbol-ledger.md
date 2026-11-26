@@ -822,3 +822,40 @@ Open: the render/snap term `FIST(trackLen × max / value)` is code-CONFIRMED
 (byte-verified 0x42BA4E–0x42BA77 + vertical branch; correction idiom
 proven dead) but runtime-unverified — screenshot mid-track thumb implies
 value/max. Held open (no implementation-ready claim for SLDR geometry).
+
+## S2 Batch E — appearance object, lifecycle, resource sections (2026-11-24; doc 20)
+
+Evidence: skinInstall 0x428C70 disassembly (all styleCtx writes),
+styleColorGet 0x42A140, inkNameLookup 0x42D3F0 + searchRecords 0x4401C0 +
+pstrRFindChar 0x43FD00, widgetBaseFill 0x42A170 + bmpFillRect 0x4263B0,
+hapLoadEntry 0x4036B0, appearanceLoadInstall 0x402FA0,
+appearanceResetDefault 0x403020, earlyInit 0x41DB10; raw: built-in blob
+header/sections, 111-file corpus D/C scans (all 8160 D colors byte0=0x00
+except 1; 39/39 C directories valid). All read-back verified; project
+saved.
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x466964 gInkTbl → **gIkonSec** | data rename | E section (icon records) pointer |
+| 0x466968 gInkCount → **gIkonSecSize** | data rename | E section size |
+| 0x46696C gInkF → **gInkFSec** | data rename | F section (ink records) pointer |
+| 0x466974 gStyleStrA → **gInkF** | data rename (S1 mis-naming corrected) | inkNameLookup("data") record ptr @styleCtx+0x58 |
+| 0x46697C gStyleStrB → **gInkF2** | data rename (S1 mis-naming corrected) | inkNameLookup("folder/standard") record ptr @+0x60 |
+| 0x466990 → **gOnceFlag** | new data label | byte; 0 when gOncePtr first set |
+| 0x4669E4 → **gSkinInstalled** | new data label | u32; set by earlyInit after skinInstall(0,0) |
+| 0x42D3F0 → **inkNameLookup** | rename+proto+comment | (out, namePstr); F-section binary search, '/'-prefix fallback, built-in F fallback |
+| 0x426660 → **bmpFillRectFromRect** | rename+proto+comment | 3-arg thunk over bmpFillRect(surf, r.x, r.y, r.w, r.h, color) |
+| 0x43FD00 → **pstrRFindChar** | rename+proto+comment | last-occurrence char find (right-to-left) |
+| styleColorGet / skinInstall / skinApply / appearanceLoadInstall / appearanceResetDefault / hapLoadEntry / earlyInit / widgetBaseFill / bmpFillRect / searchRecords | proto+comment | lifecycle + role matrix + blend-byte semantics |
+| appearanceObj | struct replaced | 744 B → **2112 B (0x840)**: reserved[16] + partOff[512]; hSbar*/vSbar* "fields" were partOff[146]/[147]/[150]/[165]/[166]/[169] (correction); pool tail documented |
+| styleCtx | struct replaced | 157 B → **204 B (0xCC)** full layout (D/E/F/G pointers, ink ptrs, once, scale, metrics[35], gSkinInstalled@+0xC8); DTM only |
+| hapNamedPool | struct (new, /haxial) | 8 B {count, offsets[1]} — E/F/G section pattern |
+| cPartId enum | **blocked** | MCP create_structure is struct-only; part ids recorded in doc 20 §7 + this ledger (13, 94, 106, 110–132 SLDR, 146/147/150/165/166/169 sbar) |
+
+Key findings (doc 20): appearance object = C section (no separate parse);
+131-vs-512 RESOLVED (512 = fixed capacity; 131 = Batch-D truncation
+assumption); section map C/D/E/F/G; D = 54 (v2) / 204 (v1) color roles,
+[00][RR][GG][BB], no bswap, consumer matrix; F/G/E = named record pools
+{count, offsets, records}; lifecycle install/apply/reset/load (owner+4
+owns the installed image); D-late correction: sbar "metrics" +0x98/+0x9A/
++0x9C = scaled-metrics matrix cells [16]/[17]/[18].
