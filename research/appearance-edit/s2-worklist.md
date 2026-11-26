@@ -629,15 +629,26 @@ to enumerate literals — we list strings and diff ourselves.
      IsWindowVisible / InvalidateRect per window) + cursorCacheReset
      (GetCursor/DestroyCursor, 20-slot table 0x466C28); doc 20 §11.4.
   2. E2: cmpFn hash fns 0x43F510/0x43F9E0; F ink bitmap block sub-struct;
-     E record flags +0x0C/+0x0E + pixel bpp; IKON widget → E-index binding;
-     G slot→cursor-name mapping; 0x42E7D0/0x40C810/0x41D400 internals;
-     corpus v1 E/F/G layout + "folder/standard" corpus presence.
+     E record flags +0x0C/+0x0E + pixel bpp; G slot→cursor-name mapping;
+     0x42E7D0/0x40C810/0x41D400 internals; corpus v1 E/F/G layout +
+     "folder/standard" corpus presence.
+     **IKON binding DONE (doc 20 §12):** ikonWidgetInit/ikonPaint decoded;
+     icon index resolves via %REZ "IKON" tag (lookupBuiltInRecSoft);
+     sentinel 1 = 'icon missing' dither; IKON = styleColorGet(4) consumer.
      **E/F/G record formats + built-in name lists CONFIRMED (doc 20 §11):**
      E = 35 %IKN icons (dir[0] reserved empty); F = 24 named %IKN inks
      (data, font/, text/, audio/, image/, video/, folder/, volume/…, data/
      truncated, alias/unattached, executable/…; dir[0] dummy = count;
      "folder/standard" ABSENT from built-in → gInkF2 = NULL); G = 19 %MSI
      cursors (S1-decoded, re-verified).
+- **BATCH E — COMPLETE (2026-11-24, doc 20 §13):** all six priorities done;
+  priority 6 closed at the documented E3 boundary (items 2–3 below remain
+  the E3 backlog). Ghidra across the batch: 7 data renames/labels, 8 fn
+  renames (inkNameLookup, bmpFillRectFromRect, pstrRFindChar,
+  winMetricsResync, cursorCacheReset, ikonWidgetInit, ikonHandlerRet,
+  ikonPaint), 13 prototypes, 18 comments, 2 structs replaced
+  (appearanceObj 0x840, styleCtx 0xCC) + 1 new (hapNamedPool). Next:
+  **Batch F (font pipeline).**
   3. E3: gOncePtr table @0x47B324; styleCtx +0x00..+0x33, +0x70,
      +0xBE..+0xC7; 0x401000/0x401290 (doc create), 0x408720 (doc dtor —
      C1 "detach" adjacency), 0x40C5C0 (notify); hapParse full decode

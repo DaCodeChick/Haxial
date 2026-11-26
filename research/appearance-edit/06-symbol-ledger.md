@@ -876,3 +876,16 @@ uploads}, data/truncated, alias/unattached, executable/{plugin,program};
 dir[0] dummy = count; 16-byte hash name match; "folder/standard" absent
 from built-in → gInkF2 = NULL). G section = 19 %MSI cursors (S1-decoded;
 re-verified).
+
+## S2 Batch E closure — IKON binding (2026-11-24; doc 20 §12)
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x43D130 | rename+proto+comment | **ikonWidgetInit** — payload map (index/tint/options/states); icon resolve via %REZ "IKON" tag |
+| 0x43D220 | rename+comment | **ikonHandlerRet** — RET stub, class +0x10 |
+| 0x43D230 | rename+comment | **ikonPaint** — styleColorGet(4) consumer; 4-way render priority; "icon missing" dither fallback (0x4598EC) |
+
+Class object 0x468310 (IKON, 120 B instance) read raw; lookupBuiltInRecSoft
+(0x445900) re-verified as %REZ registry search (count @0x45F830+0x14,
+records @+0x18, cmpFn 0x4457C0). All read-back verified; project saved.
+Batch E: all six priorities COMPLETE (6th at documented E3 boundary).

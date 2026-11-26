@@ -374,3 +374,70 @@ This batch's raw walk re-confirms the built-in layout (19 records, W/H
    sites — consumer matrix), hapParse full decode.
 9. Corpus: v1 E/F/G section verification (v1 layout differs — S1: v1 E =
    155-name table); "folder/standard" presence in corpus F sections.
+
+## 12. IKON widget ↔ E-icon binding closure (Batch E priority 5)
+
+### 12.1 IKON class object (CONFIRMED, raw 0x468310)
+
+196 B, same class layout as SLDR/MySB: magic "IKON" @+0, size 0x78 = **120 B
+instance**, childCountFn NULL, init = **ikonWidgetInit** (0x43D130),
++0x10 = **ikonHandlerRet** (0x43D220, RET stub), paint = **ikonPaint**
+(0x43D230); +0x18..+0x4C shared framework thunks (0x409BF0..0x409DE0).
+
+### 12.2 ikonWidgetInit (0x43D130) — payload map (CONFIRMED, disassembly)
+
+Args (widget, payload, len); no-op if len < 0x10.
+
+| payload | width | → widget field | semantics |
+|---|---|---|---|
+| +0x00 | u32BE | +0x38 (via resolve) | **icon index into the %REZ "IKON" table**; 0 → resolve NULL → sentinel 1 |
+| +0x04..05 | — | — | not read (reserved) |
+| +0x06 | u16BE | +0x40 | tint color (u16); 0 = untinted |
+| +0x08 | u32BE | +0x44 | option flags (default 0x30 when 0); OR'd with 0x100000 at blit time |
+| +0x0F | u8 | +0x48 (via 0x438930) | state count, clamped to 0x2F (47) |
+| +0x10.. | states | +0x48 | state table (per-state blit descriptors) |
+
+Icon resolve = `lookupBuiltInRecSoft` (0x445900, S2-named) with tag
+0x494B4F4E ("IKON" LE): searches the **%REZ registry** (0x45F830: count
+@+0x14, 20 B records @+0x18, cmpFn 0x4457C0). On hit: out = bswap(rec+0x0C),
+return = 0x45F830 + bswap(rec+0x10) = **pointer into the registry's record
+pool**. Miss → 0 → widget+0x38 := **1 (sentinel)**.
+
+**Closure**: E-section icons are reached through the %REZ registry's "IKON"
+table entry (doc 18 registry mechanism) — the widget stores the resolved
+record pointer, not a raw section index. gIkonSec (0x466964) holds the raw
+E section the registry table indexes. This satisfies the S2 constraint of
+reconstructing the full consumer chain (payload → registry → section).
+
+### 12.3 ikonPaint (0x43D230) — render priority (CONFIRMED, disassembly)
+
+1. `color = styleColorGet(4)` — **D role 4** is the IKON base color
+   (closes the role-4 consumer in §7's matrix).
+2. if states (w+0x48) → 0x42D5F0 state-driven ink blit (opts|0x100000).
+3. elif tint (w+0x40) → 0x42D190 tinted ink blit.
+4. elif w+0x3C (resolve out) → 0x43F260 direct record blit (arg -1).
+5. elif sentinel (w+0x38 == 1) → **dither placeholder**: pattern fill
+   0xAAAAAA00 (0x425C30/0x426610/0x426690) + text **"icon missing"**
+   (0x4598EC, len 12) via 0x426F50 — matches the editor's missing-icon
+   rendering in screenshots.
+
+IKON widget object (120 B): widgetBase(56) + iconRec@0x38 + recOut@0x3C +
+tint@0x40 (u16) + options@0x44 + states@0x48 (+47-entry table tail).
+
+## 13. Batch E completion assessment (2026-11-24)
+
+| Priority | Status |
+|---|---|
+| 1. appearance object lifecycle | **COMPLETE** (§1–§6: install/apply/reset/load; object = C section; owner+4 ownership; winMetricsResync + cursorCacheReset post-install) |
+| 2. 131-vs-512 part table | **COMPLETE** (§3: 512 = fixed capacity, corpus-verified; 131 = truncation error; partOff[146..169] sbar parts) |
+| 3. appearanceObj layout | **COMPLETE** (§4: 0x840 B corrected struct; D-late "fields" reclassified) |
+| 4. D-section color roles | **COMPLETE** (§7: styleColorGet, 54/204 roles, no-bswap, 14-site consumer matrix; role 4 → IKON closed) |
+| 5. E-section icons + ink objects | **COMPLETE** (§11: E/F/G record formats + built-in name lists; §12: IKON binding closure via %REZ) |
+| 6. remaining appearance resources | **PARTIAL** — G cursors + post-install closed; deferred to E3: gOncePtr table @0x47B324, styleCtx gaps (+0x00..+0x33, +0x70, +0xBE..+0xC7), hapParse full decode, 0x401000/0x401290/0x408720/0x40C5C0, 26-consumer g_appCurrent matrix, F ink block sub-structure, E flags/bpp |
+
+**Batch E is COMPLETE for all six priorities** (sixth at the documented
+E3-deferral boundary). Batch F (font pipeline) readiness: the 11-file .fnt
+corpus is inventoried (research/fonts/00-corpus-inventory.md); hapTextObj
+(140 B) and the font-glyph raster path are S1-decoded; remaining work is
+fnt-on-disk → runtime glyph object binding. (Note: the F-section "font/"
+record is a *named ink bitmap*, not a font file — not conflation bait.)
