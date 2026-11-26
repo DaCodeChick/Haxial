@@ -22,23 +22,29 @@ Full sha256 hashes: `tools/research/corpus-inventory.json`.
 | Yspe Sans Bold 0.9.fnt | 0x6814 | e142dc5f7ca8a89b |
 | bit1.fnt | 0x1850 | f1e22213b9d3ded2 |
 
-## Header pattern (CONFIRMED by 11/11 consistency)
+## Header pattern (CONFIRMED by 11/11 consistency; full analysis in
+`../appearance-edit/21-s2-font-and-text-pipeline.md` §1, 2026-11-24)
 
 ```
 0x00  4   magic "%FNT" (25 46 4E 54)
-0x04  2   u16 version = 2        (BE byte order — same convention as HAP)
-0x06  2   u16 = 1
-0x08  4   u32 (LE) total file size  — matches actual size in all 11 files
+0x04  2   u16BE version = 2
+0x06  1   u8 flag (0 in all 15 fonts incl. 4 embedded)
+0x07  1   u8 face count (1 in all 15)
+0x08  4   u32BE total file size — BE, NOT LE (this file's earlier "LE" note
+          was wrong; verified 11/11 corpus + 4/4 embedded by raw dump,
+          plus embedded pool-junction arithmetic)
 0x0C  12  zeroed
-0x18  4   u32 (LE) font name length
-0x1C  …   font name (NUL-padded to 0x40)
-0x40  …   font data — structure unanalyzed (future FontEdit session)
+0x18  1   u8 font name length (Pascal — this file's earlier "u32 (LE) length
+          @0x18, name @0x1C" note was wrong)
+0x19  …   font name, zero-padded through 0x3F
+0x40  …   font data (face slots @0xB8, 16B glyph rows @0x10C, 1bpp pools)
 ```
 
 Observations:
-- Endianness is mixed by design, exactly like HAP: structural fields BE,
-  self-describing size/name fields LE. (The version field is ambiguous between
-  BE-u16 and swap16-of-LE-u16 — both read as 2.)
+- Endianness: structural fields BE, consistent with HAP. (The version field
+  is ambiguous between BE-u16 and swap16-of-LE-u16 — both read as 2.)
+- **No author field exists** in the format (all 15 fonts zero @+0x30..+0x3F);
+  the earlier "author: Haxial" attribution was an error.
 - `Mjolnir` appears both as a `.fnt` (1.21) and as a `.hap` theme (Mjolnir /
   Mjolnir Win / Mjolnir Mac) — theme fonts are distributed alongside skins.
 - No v1 HAP corpus file references fonts directly (v1 has no F section); the

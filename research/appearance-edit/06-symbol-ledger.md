@@ -889,3 +889,30 @@ Class object 0x468310 (IKON, 120 B instance) read raw; lookupBuiltInRecSoft
 (0x445900) re-verified as %REZ registry search (count @0x45F830+0x14,
 records @+0x18, cmpFn 0x4457C0). All read-back verified; project saved.
 Batch E: all six priorities COMPLETE (6th at documented E3 boundary).
+
+## S2 Batch F — font and text pipeline (2026-11-24; doc 21)
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x44DDD0 | rename+proto+comment | **fontSelect(fontId, &glyphRecOff, refChar)** — ID table 3/4→GrandMal(0x0F/0x0C), 99/100→Myoklonika, 101/102→Panitaka, 103→Tonik-klonik; else g_appFont + g_appFontInit byte; ref record via fntParseFace |
+| 0x44DEB0 | rename+comment | **fntParseFace** — full algorithm decoded: faceCount = blob+0x07 (u8); faces @0xB8+i*0x54 {count @+0xB, table u32BE @+0xC, name pstr @+0x14 via cmp 0x4387E0}; walk n-1 × 0x18 stride `refChar <= byte[rec]`; *out = byte[rec]; returns blob-relative rec offset |
+| 0x44DF70 | rename+proto+comment | **fontGlyphSearch(charCode, &key, tableBase)** — binary search, 16B stride, keys = bswap u32BE[row+0], range [0x100, char-1] |
+| 0x43B6F0 | rename+proto+comment | **utf8ReadChar(str, len, &consumed)** — full strict UTF-8 decoder (1-4B, overlong/illegal → 0xFFFD); **text encoding = UTF-8 CONFIRMED** |
+| 0x44E350 / 0x44E4C0 | rename | **fontCharWidth / fontCharWidthCore** — per-char advance core (3-arg) |
+| 0x44E5C0 / 0x44E5D0 | rename+proto+comment | **fontRecAscent** (byte[blob+rec]) / **fontRecHeight** (byte0+byte1 = line height) |
+| 0x44FE50/0x450140/0x450450 | rename | **fontGlyphRowBlit1/2/3** — 1bpp MSB-first row rasterizers, height classes ≤8/≤16/≤24; 2-color palette via surface ptr; 1bpp dest |
+| 0x445E90 | rename+proto+comment | **fontCtxWidth(fontId, &recOff)** — resolves ID→(blob,recOff) or S2 object (magic 0x6ABA021A @+0x30)→([+0x34],[+0x38]) |
+| 0x4460C0/0x446130 | rename | **fontCharWidthOf / fontCharWidthOf2** |
+| 0x446240 / 0x446360 | rename+proto+comment | **fontLineHeight** (via fontRecHeight) / **fontAscent** (via fontRecAscent) |
+| 0x4462A0 | rename+proto+comment | **fontFitWidth** — truncation/fit: utf8ReadChar + fontCharWidth walk, half-advance term vs maxW |
+| 0x46698C | rename | **g_appFont** (was DAT_0046698c) — default font blob; set to fntMyoklonika by skinInstall tail |
+| 0x466990 | rename | **g_appFontInit** (was gOnceFlag) — refChar byte for the default-font path |
+| 0x47B324 / 0x47EF54 / 0x483C6C / 0x486258 | rename | **fntMyoklonika / fntGrandMal / fntPanitaka / fntTonikKlonik** — embedded .fnt v2 blobs (true sizes 0x3C30/0x4D18/0x25EC/0x2868, pool-junction-verified; earlier 0x184D/0xEC25/0x6828 were byte-swap artifacts) |
+| 0x45EA50 | label | **fontServiceTable** — {fn, serviceId} module-service registry anchor; font services 0x0045B814–0x0045B859+ (select/parse/search/blit/width/height/…); no direct xrefs (ID dispatch) |
+| 0x44DFE0 | comment update | **inkBlitCore** — corrected: row = base + cp*16; default row = base + 0x1A0 (row 13); missing = byte[row+0xC]==0 && cp≠0x0A; dims @+8..+B; budget guard via bswap(u32BE[row+4]); advance = first memory byte of +0x0C (dual pool-offset/advance) |
+
+Structures: none new (row record layout documented in doc 21 §1.3 +
+fnt_inspect.py instead — 4 of 7 row fields have unverified semantics;
+applying a partial structure would violate layout-vs-semantic confidence
+separation). No GDT/archive definitions touched. All renames read-back
+verified; project saved.

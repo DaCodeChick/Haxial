@@ -189,7 +189,7 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
    .fnt → ink pipeline.
 5. C-blob `field0`/`field2`/`field4` semantics; secondary-mode (flags
    2/4/8) extra-row content + consumer.
-6. `gStyleStrA/B` (0x466974/7C) and `gOncePtr` (0x46698C → 0x47B324) purposes.
+6. ~~`gStyleStrA/B` (0x466974/7C) and `gOncePtr` (0x46698C → 0x47B324) purposes.~~ **RESOLVED (Batch F, 2026-11-24, doc 21)**: gStyleStrA/B = gInkF/gInkF2 (E2); gOncePtr = **g_appFont** — default font blob pointer (Myoklonika, fntMyoklonika @0x47B324), set by skinInstall tail with g_appFontInit (0x466990).
 7. Post-install hooks 0x40F220 / 0x41D390.
 
 ## 5.2 Session S2 resolutions (2026-11-20 → 2026-11-21)
@@ -253,6 +253,23 @@ the post-R0-A.2 next-stage plan at the end of this file (§6).
   backend features, haxial-import → **haxial-compat** rename, no compat→
   core dependency without demonstrated need). Design decisions, not RE
   findings.
+- **Font & text pipeline — RESOLVED (Batch F, 2026-11-24, doc 21)**:
+  .fnt v2 on-disk format (64B header — size field is u32BE, correcting the
+  corpus-inventory LE note; faceCount = blob+0x07 u8; faces @0xB8+i*0x54;
+  16B glyph rows; inline + external 1bpp pools); **text encoding = UTF-8**
+  (utf8ReadChar 0x43B6F0 = full strict decoder, 0xFFFD fallback) — legacy
+  single-byte encoding question closed by code; metrics derive from glyph
+  records (ascent = ref-rec byte0, height = byte0+byte1, no separate
+  metrics table); inkBlitCore full loop (direct row = base + cp*16,
+  fontGlyphSearch binary search cp≥0x100, default row 13, budget guard,
+  1bpp MSB-first → 1bpp surface → 32bpp DIB; no GDI text APIs); S2 runtime
+  font object (magic 0x6ABA021A @+0x30, +0x34/+0x38 retain refs into
+  serialized data); 4 embedded fonts (Myoklonika/Grand Mal/Panitaka/
+  Tonik-klonik) + g_appFont default via skinInstall; fontServiceTable
+  module-service registry (font services 0x0045B814+) explains the missing
+  xrefs on "While loading font file: ". Remaining: F-1..F-8 backlog (doc
+  21 §12) — loader/constructor, row-array base origin, service dispatcher,
+  pool-glyph w/h source, wrapping, per-appearance font selection.
 
 ## 6. Next-stage plan (post-R0-A.2, 2026-11-18)
 

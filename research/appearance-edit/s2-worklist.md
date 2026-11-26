@@ -663,3 +663,53 @@ to enumerate literals — we list strings and diff ourselves.
   54 roles); inkBlitCore (0x44DFE0); gInkF/gInkF2 (0x466974/0x46697C,
   was gStyleStrA/B); 0x40F220/0x41D390 (skinApply chain); assembly table
   0x466DD4.
+
+## BATCH F — font & text pipeline (2026-11-24, doc 21)
+
+**CORE COMPLETE (F1–F6, F9, F10; F7/F8 partial).** Findings:
+- .fnt v2 header 64B (size = u32BE — corpus-inventory LE note corrected;
+  no author field exists — earlier "Haxial" note disproven; embedded font
+  true sizes 0x3C30/0x4D18/0x25EC/0x2868 pool-junction-verified, earlier
+  0x184D/0xEC25/0x6828 were byte-swap artifacts);
+  faceCount = blob+0x07 (u8); faces @0xB8+i*0x54 {count @+0xB, table
+  u32BE @+0xC = 0x10C, name pstr @+0x14}; glyph rows 16B @ tableOff:
+  char/byte0, charID u32BE @+4, w/h/x/y @+8..+B, u32BE @+0xC (pool offset
+  ≤0xFFFF else first-byte advance); inline vs external 1bpp pool
+  (Lies: 0x2AE4–0x3233 ASCII, 0x323D–0x40EB extended; dashed-line + 8×8
+  digit glyphs decoded visually).
+- **UTF-8 CONFIRMED** (utf8ReadChar 0x43B6F0 = full strict decoder,
+  0xFFFD fallback). No GDI text APIs in pipeline — pure DIB blits.
+- Metrics derive from glyph records: ascent = ref rec byte0, line height =
+  byte0+byte1 (fontRecAscent/Height), advances per-glyph, fontFitWidth
+  truncation w/ half-advance term. No separate metrics table.
+- inkBlitCore: row = base + cp*16 (cp<0x100); fontGlyphSearch binary
+  search (cp≥0x100, keys bswap u32BE[row+0], range [0x100,cp-1]); default
+  row = base + 0x1A0 (row 13); missing = byte[row+0xC]==0 && cp≠0x0A;
+  budget guard (bswap u32BE[row+4], w*h+charID) aborts degenerate fonts;
+  1bpp MSB-first rows → 1bpp surface → 32bpp DIB (labelPaint temp-bitmap
+  path, S1-carryover).
+- S2 runtime font object: magic 0x6ABA021A @+0x30; +0x34 = blob-equiv,
+  +0x38 = recOff-equiv (retains refs into serialized data, not a
+  reconstructed model). g_appFont (0x46698C) = Myoklonika via skinInstall
+  tail + g_appFontInit (0x466990).
+- fontServiceTable (anchor 0x45EA50): {fn, serviceId} pairs; font services
+  0x0045B814–0x0045B859+; explains missing xrefs on font strings
+  (ID dispatch, no direct calls).
+- Ghidra: 24 renames, 9 prototypes, 9 comments (incl. inkBlitCore
+  correction), 0 new structures (row layout documented in doc 21 §1.3 +
+  tools/research/fnt_inspect.py instead — evidence-blocked, not deferred
+  sloppily). All read-back verified; project saved.
+
+**F-remainder backlog (doc 21 §12):**
+- F-1 locate .fnt file loader / S2 object constructor (needs F-3 dispatcher)
+- F-2 row-array base origin ([EBP-0x5C]) vs 0x10C; walk stride 0x18 vs 0x10;
+  extended-region alignment (corpus keys 4B off naive)
+- F-3 service-table full extent + ID dispatcher (cross-cutting)
+- F-4 0x444600 (row-value) + 0x44E470 (fit helper) internals
+- F-5 fontTextDraw/fontMetricsGet per-parameter gate (Batch V unless hit)
+- F-6 w/h origin for pool glyphs (w=0/h=0 rows); inline-pixel row semantics
+- F-7 multi-line wrapping (interaction layer, beyond F boundary)
+- F-8 per-appearance font selection (corpus .hap fonts absent — E3-11)
+
+**Next: Batch G** (C-blob remainder, `flags & 1` tiled branch) or
+**Batch V** (final audit/readiness) per owner sequencing.
