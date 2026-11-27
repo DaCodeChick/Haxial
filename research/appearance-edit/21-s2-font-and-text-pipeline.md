@@ -37,10 +37,12 @@ Every claim below is tagged with its evidence class:
 
 Verified against all 11 corpus files and all 4 embedded fonts (raw bytes
 dumped for all 15). Previous session notes claiming an author pstr @+0x38
-("Haxial") and a corpus-inventory note ("size @+0x08 is LE") are both
-**corrected** by direct raw inspection: there is **no author field**
-(+0x30..+0x3F are zero in all 15 fonts), and the size field is **
-big-endian in all 15 fonts** (corpus + embedded pool, verified).
+("Haxial") were an **offset error** (reconciliation-corrected): +0x30..+0x57
+are zero in all 15 fonts, and the author pstr is at **+0x58** (u8 len + name
+bytes; "Haxial" in all 4 embedded fonts, "VletFont\u2122" in bit1/Harial,
+"N.NN \u00a9 200X despiritus" truncated in the remaining corpus fonts, up to
+24 name bytes in OCRAP). The size field is **big-endian in all 15 fonts**
+(corpus + embedded pool, verified).
 
 | Off | Size | Field | Notes |
 |-----|------|-------|-------|
@@ -51,8 +53,11 @@ big-endian in all 15 fonts** (corpus + embedded pool, verified).
 | 0x08 | 4 | u32BE total file size | [S][R] all 15 fonts |
 | 0x0C | 12 | zeroed | [S][R] |
 | 0x18 | 1 | u8 name_len (Pascal) | [S][R] |
-| 0x19 | 47 | name bytes, zero-padded through 0x3F | [S][R] |
-| 0x40 | — | font data begins (face slot @0xB8; face blocks + row table @0x10C) | [S][C] |
+| 0x19 | — | name bytes (len byte @+0x18; short names, zero-padded through 0x57) | [S][R] |
+| 0x58 | 1 | u8 author_len (Pascal) | [S][R] all 15 fonts |
+| 0x59 | — | author bytes ("Haxial" embedded; "VletFont\u2122" bit1/Harial; up to 24B, OCRAP) | [S][R] |
+| 0x64..0xB7 | — | zeroed (all samples) | [S][R] |
+| 0xB8 | — | face slot (84B); face-block array @0x10C; row tables + pool follow | [S][C] |
 
 ### 1.2 Face slot (84 bytes @ blob+0xB8) and face blocks — **[CORRECTED, Batch V]**
 
@@ -83,7 +88,7 @@ size variant of the font (e.g. Von Yerk: ascents 11/12/15/17): [C][S][R]
 | +0x03 | u8 (= 0) | [S][R] |
 | +0x04..+0x0F | three u32BE, zero in all samples | [S][R] |
 | +0x10 | u32BE **rowCount D** (rows in this block's table; 256..584 in samples) | [C] passed as `hi` to fontGlyphSearch by inkBlitCore; [S][R] |
-| +0x14 | u32BE **rowBase E** (blob-relative) | [C] `rowbase = ctx + bswap([ctx+recOff+0x14])` in inkBlitCore; [S][R] block0 = table + count*0x18, block k+1 = block k + 0x1000 (verified in all 7 multi-font samples) |
+| +0x14 | u32BE **rowBase E** (blob-relative) | [C] `rowbase = ctx + bswap([ctx+recOff+0x14])` in inkBlitCore; [S][R] block0.E = table + count*0x18; block k.E = align4(pool end of face k−1) for k ≥ 1 (verified in all 5 multi-block fonts: Grand Mal, Mjolnir, Von Yerk, Yspe Sans, Yspe Sans Bold; the old "block k+1 = block k + 0x1000" wording was a Batch F artifact) |
 
 **Face-block walk (fntParseFace tail, [C] CONFIRMED, V1 corrected):** with
 `n = count - 1`, `blk = blob + table`: if n > 0, walk `n-1` times max:
@@ -153,19 +158,18 @@ pen += byte[row+0xC]
 
 **Pixel pool [S][R]:** contiguous 1bpp blocks (rowBytes × h, MSB-first,
 no per-row padding) appended after the row tables (pool starts at
-rowBase + D*16). Verified on Lies 1.299 (pool 0x2AE4+, offsets now read
-from the chid/poolOff field @+4); the earlier "34 offsets" list is the same
+rowBase + D*16). Verified on Lies 1.299 (pool 0x2AE4+; offsets now read
+from the poolOff field @+0x04); the earlier "34 offsets" list is the same
 pool, re-derived correctly in the V1 tool run.
-| Grand Mal g1 | 0x0F | 15 | 1 | 16 |
-| Panitaka | 0x0C | 12 | 1 | 13 |
-| Tonik-klonik | 0x0F | 15 | 1 | 16 |
-| bit1 | 0x0D (CR) | 13 | 1 | 14 |
-| End 0.9 | 0x12 | 18 | 1 | 19 |
 
-The "ascent = char value" encoding is a [S][R] **HYPOTHESIS** (fits all 7
-samples exactly; no code comment available). The byte0+byte1 = line-height
-computation is [C] CONFIRMED (fontRecHeight, 0x44E5D0: `ret byte[a+b] +
-byte[a+b+1]`).
+**Face ascent values [S][R]:** the face-block ascent byte equals the
+requested height that fontSelect passes for the matching size variant
+(e.g. Grand Mal variants 12/15; Von Yerk 11/12/15/17). This is a direct
+consequence of the fntParseFace walk (first block with ascent ≥ reqHeight)
+— not a separate "reference char" encoding (Batch F's "ascent =
+reference-char value" wording is superseded; the compared value was the
+requested height itself). The byte0+byte1 = line-height computation is
+[C] CONFIRMED (fontRecHeight, 0x44E5D0: `ret byte[a+b] + byte[a+b+1]`).
 
 ---
 
@@ -186,8 +190,11 @@ verified by exact pool-junction arithmetic [S] CONFIRMED:
 | `fntPanitaka` | 0x483C6C | 0x25EC (9708) | Panitaka |
 | `fntTonikKlonik` | 0x486258 | 0x2868 (10344) | Tonik-klonik |
 
-All 4 parse cleanly with `fnt_inspect.py` at these sizes (194 pool offsets
-each except Grand Mal's advance-only layout; pools within bounds).
+All 4 parse cleanly with `fnt_inspect.py` (V1.4) at these sizes:
+Myoklonika 584 rows; Grand Mal 413+413 rows across 2 face blocks; Panitaka
+413 rows; Tonik-klonik 413 rows (D = u32BE face-block+0x10, re-verified raw
+2026-11-27 — an older session note of 332/0x130 for Tonik was a misread);
+all pools within bounds, densely packed in row order.
 
 - **`g_appFont` (0x46698C)** = default installed font blob pointer; set to
   `fntMyoklonika` at the tail of `skinInstall` (0x428C70) when NULL, together
@@ -200,33 +207,27 @@ each except Grand Mal's advance-only layout; pools within bounds).
 
 ## 3. `fontSelect` and font ID semantics — [C] CONFIRMED
 
-`fontSelect(fontId, &glyphRecOff, refChar)` → font blob pointer (EAX).
-0x44DDD0.
+`fontSelect(fontId, &glyphRecOff, reqHeight)` → font blob pointer (EAX).
+0x44DDD0. **[CORRECTED, Batch V]** — the third argument is the **requested
+face height** (12 or 15), not a "reference char".
 
-| fontId | Blob | refChar |
+| fontId | Blob | reqHeight |
 |---|---|---|
-| 3 | Grand Mal | 0x0F |
-| 4 | Grand Mal | 0x0C |
-| 99 | Myoklonika | 0x0F |
-| 100 | Myoklonika | 0x0C |
-| 101 | Panitaka | 0x0F |
-| 102 | Panitaka | 0x0C |
-| 103 | Tonik-klonik | 0x0F |
-| other | `g_appFont` | byte `g_appFontInit` |
+| 0 | Grand Mal | 15 |
+| 1 | Grand Mal | 12 |
+| 2 | Myoklonika | 15 |
+| 3 | Tonik-klonik | 15 |
+| 4 | Grand Mal | 15 |
+| 5 | Grand Mal | 12 |
+| 6 | Panitaka | 12 |
+| ≥ 7 | `g_appFont` (default; = fntMyoklonika via skinInstall) | byte `g_appFontInit` (0 for the built-in) |
 
-The **reference char** selects *which* record of the face supplies metrics
-(see §1.3): e.g. Grand Mal has two metric profiles (12/13 and 15/16) selected
-by IDs 3 vs 4. The returned `glyphRecOff` is the record offset for the
-reference char, computed by `fntParseFace` (0x44DEB0), which walks records
-from the face table with **stride 0x18** comparing record byte0 against the
-refChar. [C]
-
-> Note the stride mismatch: the walk uses 0x18 while the binary search and
-> direct index use 0x10. [C] Both observed in code. Interpretation: the walk
-> enumerates a *subsequence* (every 1.5 records) or the reference record is
-> addressed in a coarser stride than glyph rows — unresolved, BACKLOG F-2.
-> It does not affect rendered output for the built-ins (walk stops at record 0
-> for all 7 embedded fonts because refChar ≥ record0.byte0).
+`fntParseFace` (0x44DEB0) walks the 24B face blocks (stride 0x18) and
+returns the first block with ascent ≥ reqHeight (recOff + ascent out).
+The Batch F "reference char" model and its ID table (3/4/99…103) were a
+misread, superseded by this V1-verified mapping [C]. The old "stride
+mismatch" note (0x18 vs 0x10) is resolved: 0x18 enumerates face blocks and
+0x10 enumerates glyph rows — two different record classes (§1.2).
 
 ---
 
@@ -265,7 +266,19 @@ path, i.e. **+0x34 = blob-equivalent base, +0x38 = reference-record
 offset-equivalent** [C] by usage. The object therefore **retains references
 into the serialized font data** (same pattern as the appearance object =
 image pointer), rather than reconstructing an independent runtime font model.
-[C] by behavior; the allocating constructor is not yet located (BACKLOG F-1).
+[C] by behavior. The allocating constructor **does not exist in this
+binary** — F-1 resolved negative (V1, §14.1): the object is
+consumption-only here (its constructor lives in an external Haxial
+component; the 11 corpus .fnt files are evidence that component exists, not
+that the editor loads them).
+
+**Two-object note (reconciliation, §14.7):** this object is
+**s2FontObj** (magic 0x6ABA021A inline at +0x30; Ghidra structure created,
+head +0x00..+0x2F unknown). It is a **distinct type** from the widget-level
+**fontCtxObj** (magic 0x8521B2D1 at +0x00) used by fontTextDraw/
+fontMetricsGet — fontTextDraw *dereferences* [ctx+0x30] as a pointer
+(0x4246AC) while the metrics cluster *compares* [arg+0x30] == 0x6ABA021A
+(0x446383); both cannot hold for one object.
 
 ---
 
@@ -290,7 +303,7 @@ search, full compare at the end) is a right-bearing compensation: a string
 No separate metrics table exists: **everything derives from face blocks and
 glyph rows** (ascent/descent from the face block @+0/+1 via recOff;
 advances per-glyph at row+0x0C). This answers Batch F item 2: the stored
-fields are key, poolOff, w, h, x, tag, adv per row, plus ascent/descent/
+fields are key, poolOff, w, h, xOff, yOff, adv per row, plus ascent/descent/
 rowCount/rowBase per face block. The "conventional typography" caution
 holds — these are not TTF-style metrics.
 
@@ -377,9 +390,10 @@ pal1, pal2, state, mode). Confirmed behavior:
 - `listRowFill` / `listRowPaint`, `bmpRowText`, `textWidgetGetRect`,
   `textWidgetStateGet`, `labelSetText`: text-widget plumbing, unchanged from
   S1 [C]
-- `fontTextDraw` (0x424550) / `fontMetricsGet` (0x4230C0): higher-level
-  font-driven text entry points (S1 inventory) [C names; per-parameter audit
-  deferred — F-5]
+- `fontTextDraw` (0x424550) / `fontMetricsGet` (0x4230C0): **fully decoded
+  (F-5, V1, §14.7)** — fontTextDraw is a cell-grid renderer dispatching
+  per column to a renderer callback (fontCtxObj+0x50); fontMetricsGet copies
+  the 16B label metrics. Named prototypes + fontCtxObj structure applied.
 
 **No GDI text APIs anywhere in the pipeline** — no `TextOut`, `DrawText`,
 `ExtTextOut`, `CreateFont`. The entire text path is DIB blits. [C] by
@@ -419,8 +433,8 @@ string with zero references** (no font-file loader in this build; see §14).
 
 | Item | Status |
 |---|---|
-| F1 .fnt on-disk format | **DONE** (header/face/rows/pool; face-count @+0x07 + face-slot structure code-corrected §1.2; extended-region alignment open in F-2; 3 row-field roles deferred in F-6) |
-| F2 loader + runtime construction | **PARTIAL** — runtime object layout [C]; file loader not located (registry dispatch; BACKLOG F-1) |
+| F1 .fnt on-disk format | **DONE** (header incl. author pstr @+0x58, size u32BE; face/rows/pool; face-count @+0x07 + face-slot structure code-corrected §1.2; V1 full record-layout correction §1.2/§1.3/§14.6) |
+| F2 loader + runtime construction | **RESOLVED (V1, §14.1/§14.2)** — negative result: no .fnt loader or S2-object constructor in this build; consumption-only interface (s2FontObj head +0x00..+0x2F remains unknown — preserved open, not claimed resolved) |
 | F3 glyph→ink binding | **DONE** — glyphs ARE the ink source: inkBlitCore reads record/pool directly into the 1bpp surface; no separate glyph-ink object. Shared representation confirmed (Batch F constraint satisfied: no invented abstraction). |
 | F4 measurement/metrics | **DONE** (§6) — ascent/height/advance/fit/truncate all code-CONFIRMED |
 | F5 encoding | **DONE** — UTF-8, strict, 0xFFFD fallback [C] |
@@ -428,12 +442,24 @@ string with zero references** (no font-file loader in this build; see §14).
 | F7 layout/interaction | **PARTIAL** — placement (align/baseline/advance/right-edge) [C]; multi-line wrapping and text-widget edit interaction remain (S1 text-widget docs cover state; wrap logic not traced) |
 | F8 scaling + appearance | **PARTIAL** — font scaling primitive: none observed (no scaleQuad usage in font path; geometry scaling ≠ font scaling constraint honored). Appearance integration: g_appFont via skinInstall [C]; per-appearance font selection not traced |
 | F9 corpus validation utility | **DONE** (tools/research/fnt_inspect.py, see below) |
-| F10 Ghidra enrichment | **DONE** — 24 renames, 9 prototypes, 8 comments (batch below) |
+| F10 Ghidra enrichment | **DONE (Batch F)** — 24 renames, 9 prototypes, 8 comments (batch below; **parts superseded by Batch V — see §10 banner**) |
 | F11 documentation | this document |
 
 ---
 
 ## 10. Ghidra mutations (this batch)
+
+> **SUPERSEDED IN PART (Batch V + reconciliation, 2026-11-27).** Historical
+> Batch F record. Batch V subsequently: renamed `fontGlyphRowBlit3` →
+> `blitRow1bpp` (0x450450); renamed data label `fontServiceTable` →
+> `resNameIdTable` (0x45EA50); retyped fontCtxWidth/fontAscent/
+> fontLineHeight/fontCharWidthOf(2) first parameters to `s2FontObj *`;
+> added named prototypes for fntParseFace, inkBlitCore, fontMetricsGet,
+> fontTextDraw, labelWidgetFill; created **and applied** structures
+> `fntFaceBlock` (24B), `fntRowRec` (16B), `fontCtxObj` (200B), `s2FontObj`
+> (60B) — see §14.7 and the symbol ledger. The "Structures: none new"
+> decision below was **replaced** when the face-block/row layouts became
+> fully verified (code + corpus) and application became evidence-justified.
 
 **Renames (24, all verified by read-back):**
 functions: fontSelect, fntParseFace, fontGlyphSearch, utf8ReadChar,
@@ -472,20 +498,26 @@ g_appFont.
 Visited/enriched this batch: fontSelect, fntParseFace, fontGlyphSearch,
 utf8ReadChar, fontCharWidth(Core), fontRecAscent/Height, fontCtxWidth,
 fontCharWidthOf(2), fontLineHeight, fontAscent, fontFitWidth,
-fontGlyphRowBlit1 (2/3 listed, not fully disassembled), 0x44E470 (fit helper,
-comment-only), 0x444600 (row-value, comment-only).
+fontGlyphRowBlit1/2, 0x44E470, 0x444600. Batch V completed the deferred
+items: 0x450450 fully decoded + renamed `blitRow1bpp` (font/DIB shared 1bpp
+row rasterizer); 0x444600 = `paletteNearest` (full decode, F-4); 0x44E470 =
+`fontCharWidthCore` (rename; the "fit helper" label was stale).
 Already correct (S1): bmpTextDraw, labelPaint, listRowFill/Paint, bmpRowText,
 textWidgetGetRect/StateGet, labelSetText, widgetBlit, fontTextDraw,
 fontMetricsGet (names), widgetSendMsg.
-Deferred/blocked: fontGlyphRowBlit2/3 full audit (variants of blit1, low risk);
-0x44E470/0x444600 internals (BACKLOG F-4); S2 font object constructor
-(BACKLOG F-1); service-table dispatcher (BACKLOG F-3); font-chooser UI
-interaction (out of scope per Batch F boundary: "do not expand text layout
-into a comprehensive unrelated widget investigation"); hap F-section
-"font/standard" ink interaction (E3 backlog item 2).
+Deferred/blocked (still open): s2FontObj head fields +0x00..+0x2F
+(unknown; consumption-only — preserved, not claimed resolved);
+font-chooser UI interaction (out of scope per Batch F boundary: "do not
+expand text layout into a comprehensive unrelated widget investigation");
+hap F-section "font/standard" ink interaction (E3 backlog item 2); F-7
+multi-line wrapping.
+Resolved by Batch V: fontGlyphRowBlit2/3 audit (F-4 + blitRow1bpp decode);
+0x44E470 (fontCharWidthCore); 0x444600 (paletteNearest); S2 constructor
+(F-1 negative — not present in this build); service-table dispatcher
+(F-3 disproven — no such dispatcher exists).
 Boundaries: GDI (verified absent from pipeline), Windows font API (chooser
-only, separate mechanism), module service registry internals (cross-cutting,
-own future batch).
+only, separate mechanism). (The old "module service registry internals"
+boundary is void — F-3 disproved the registry.)
 
 ---
 
@@ -508,24 +540,40 @@ own future batch).
 
 - The ascent = reference-char-value encoding (§1.3) fits all samples but is
   not code-commented: **HYPOTHESIS** (computation itself CONFIRMED).
-- The "author: Haxial @+0x38" claim from earlier session notes is **DISPROVEN
-  by raw inspection** (all 15 fonts zero there); §1.1 corrected accordingly.
+- The "author: Haxial @+0x38" claim from earlier session notes was an
+  **offset error**: +0x30..+0x57 are zero in all 15 fonts, but the author
+  pstr exists at **+0x58** ("Haxial" in all 4 embedded fonts; §1.1
+  reconciliation-corrected).
 - Earlier embedded-font sizes 0x184D/0xEC25/0x6828 (from pre-Batch-F notes)
   were **byte-swap artifacts**; true sizes 0x4D18/0x25EC/0x2868 verified by
   pool-junction arithmetic (§2). The format is plain u32BE in all 15 fonts —
   no writer anomaly exists.
 - ~~`fontServiceTable` anchor 0x45EA50 is mid-table; true start/end unknown.~~
   **RESOLVED (V1)** — no such table exists; §8 superseded.
-- The S2 font object's fields before +0x30 (object head, vtable, size) are
-  unknown — only the three consumed offsets are confirmed.
+- The **s2FontObj** head (fields +0x00..+0x2F) is unknown — only the three
+  consumed offsets (+0x30 magic, +0x34 blob, +0x38 recOff) are confirmed.
+  Preserved open (consumption-only; no constructor in this binary). Whether
+  `fontCtxObj->s2ObjPtr` (+0x30) points at an s2FontObj is **unproven**
+  (§14.7).
 - No runtime rendering equivalence is claimed (no Haxial runtime executable
   available); all rendering claims are code-level.
 - The 1bpp intermediate surface is per-line (labelPaint evidence); a
   whole-string surface for very long lines is not ruled out (F-7).
-- Pixel rows are MSB-first; byte order of the *inline* 12-byte pixel area vs
-  the external pool is identical (MSB-first in both, per blit1 code).
+- Pixel rows are MSB-first (pool blocks; per blit1/blitRow1bpp code). The
+  Batch F "inline 12-byte pixel area" was **disproven** — no inline mode
+  exists (§1.3/§14.6).
 - Nothing here implies the modern implementation must keep 1bpp, UTF-8
   fallback 0xFFFD: these are legacy compatibility facts, not design mandates.
+- **Preserved open (owner directive, no historical interpretation
+  selected):** the +0x34 pointer-vs-count readings (metrics cluster = blob
+  pointer; fontTextDraw = column count) are attributed to two distinct
+  object types by the deref-vs-compare asymmetry at +0x30 (fontTextDraw
+  dereferences [ctx+0x30] at 0x4246AC; the metrics cluster compares
+  [arg+0x30] == 0x6ABA021A at 0x446383). Remaining unclassifiable
+  statically: the pointee of `fontCtxObj->s2ObjPtr` and the object passed by
+  object-field callers (e.g. [obj+0xC] at 0x42B28C / 0x42B417).
+- fontCtxObj unverified regions: +0x1C..+0x2F, +0x44..+0x4F, +0x58..+0xC3
+  (no code reads confirmed for these offsets).
 
 ## 14. Batch V (V1) closure — font pipeline (2026-11-27)
 
@@ -554,6 +602,13 @@ component (runtime/font module), not of the editor. For S3: `haxial-compat`
 implements the .fnt *format* (from corpus + code); file-loading plumbing is a
 modern design choice, not recovered behavior. Classification: **Resolved**
 (negative result).
+
+**Scope note (owner directive):** this negative result is scoped to
+AppearanceEdit.exe 1.400. The 11 corpus .fnt files (openkdx distribution)
+evidence .fnt loading in another Haxial component; its absence here is **not
+evidence about that component's architecture**, and the S2 consumption
+interface in this binary is not evidence that the editor ever constructs
+such objects.
 
 ### 14.2 S2 font object — consumption-only interface [C]
 
@@ -614,7 +669,7 @@ blob+0x10C:  count × 24B face blocks          (one per size variant)
              block k.E = align4(pool end of face k-1)   (k ≥ 1)
 blob+E:      D × 16B rows  (key = cp, direct index for cp < 0x100;
                            binary search for cp ≥ 0x100, range [0x100, D-1])
-             row: {key u32BE, poolOff u32BE, w, h, xOff, yOff, adv, [3B pad]}
+             row: {key u32BE, poolOff u32BE, w, h, xOff, yOff, adv}  (exactly 16B)
 after rows:  1bpp pixel pool for THIS face: densely packed in ROW ORDER,
              block size = rowBytes*h (rowBytes = (w+7)>>3), MSB-first;
              (inkBlitCore's guard uses the looser poolOff + w*h ≤ size)
@@ -652,12 +707,12 @@ reused.
 | Off | Field | Evidence |
 |---|---|---|
 | +0x00 | uint magic = 0x8521B2D1 | [C] fontMetricsGet 0x4230CF, fontTextDraw 0x424560 |
-| +0x04..+0x0F | metrics[4] (label metrics; [1] @+8 = x origin for cell layout) | [C] fontMetricsGet copy loop; fontTextDraw baseX |
+| +0x04..+0x13 | metrics[4] (16B: [0] @+4, [1] @+8 = cell-layout x origin, [2] @+0xC, [3] @+0x10 = max-row bound) | [C] fontMetricsGet copies all 4 dwords (0x4230D6..0x4230F2); fontTextDraw uses [1] as baseX and [3] as row bound |
 | +0x14 | charW (cell width) | [C] fontTextDraw 0x4245B4 |
 | +0x18 | flags (bit 0x200 = start-col correction) | [C] fontTextDraw 0x4245E5 |
-| +0x30 | S2 magic 0x6ABA021A (S2-font contexts) | [C] fontCtxWidth/fontAscent/fontLineHeight checks |
-| +0x34 | blob pointer (metrics cluster) — see discrepancy | [C] fontAscent -> fontRecAscent(byte[blob+recOff]) |
-| +0x38 | recOff (face-block offset) | [C] same |
+| +0x30 | **s2ObjPtr** — pointer, dereferenced by fontTextDraw (`byte[s2ObjPtr+col]` @0x4246AC); pointee identity unproven | [C] fontTextDraw 0x4245BA + 0x4246AC |
+| +0x34 | **colCount** — column count for the cell-grid path (bounds compare @0x424611; IMUL @0x4245F1; min-against @0x424645) | [C] fontTextDraw |
+| +0x38 | recOff (face-block offset; read in this build only via the ID path's fontSelect output) | [C] fontTextDraw does not read it |
 | +0x3C | inkPtrs — per-column ink/color pointer array (cell-grid path) | [C] fontTextDraw 0x424693-0x424696 |
 | +0x40 | inkCount (bound for inkPtrs) | [C] fontTextDraw 0x42468E |
 | +0x50 | renderer — per-cell renderer **callback** (function pointer) | [C] fontTextDraw CALL [local_30] 0x4246BC |
@@ -675,24 +730,58 @@ column: x = baseX + col*charW; ink = col < inkCount ? inkPtrs[col] : 0;
 cellData = byte[s2Obj+col] | modeFlag; CALL renderer(geom, &metrics[0],
 string, cellData, col, ink, rendererCtx); x += charW.
 
-**Batch F "S2 object head unknown" — RESOLVED:** the 0x6ABA021A magic
-@+0x30 / blob @+0x34 / recOff @+0x38 fields Batch F documented are the
-**tail of fontCtxObj**, not a separate object; the head (+0..+0x2F:
-wrapper magic + metrics + charW + flags) is now mapped.
+**TWO-OBJECT MODEL (reconciliation correction — supersedes the V1
+checkpoint's "S2 head resolved" wording):** the 0x6ABA021A object and the
+0x8521B2D1 fontCtxObj are **two distinct types**:
 
-**DISCREPANCY (open, nonblocking):** [ctx+0x34] is byte-indexed as a blob
-pointer by the metrics cluster (fontAscent -> fontRecAscent) but used as a
-small column count by fontTextDraw's cell-grid path (bounds compare at
-0x424611, IMUL at 0x4245F1). For a pointer value those cell-grid usages are
-dead (overflow/never-true); for a count the metrics path would be invalid.
-Static resolution impossible (runtime-written field, no visible writer in
-this binary); recorded as an explicit dual-interpretation. The Rust
-implementation should pick one interpretation per context type (blob
-pointer for the standard label font; the cell-grid path is a separate,
-apparently legacy, feature).
+- **fontCtxObj** (magic 0x8521B2D1 @+0x00): widget-level text context
+  (labelWidgetFill's widget+8); +0x30 is a **pointer** (fontTextDraw
+  dereferences it at 0x4246AC), +0x34 a **column count**.
+- **s2FontObj** (magic 0x6ABA021A **inline at +0x30**; Ghidra structure
+  created, 60B): the metrics-cluster font object (fontCtxWidth/
+  fontAscent/fontLineHeight/fontCharWidthOf(2) compare [arg+0x30] at
+  0x445EB3/0x446170/0x4460E3 etc.); +0x34 = **blob pointer**, +0x38 =
+  recOff. Head +0x00..+0x2F remains **unknown** (Batch F's open item is
+  preserved — it was NOT resolved by fontCtxObj).
 
-**Ghidra (read-back verified):** fontCtxObj structure (root, 200B); named
-prototypes fontMetricsGet/fontTextDraw/labelWidgetFill; comments on all
-three. Parameter-name preservation: pre-mutation snapshot = auto param_N
-(fontTextDraw) / Batch F names (fontMetricsGet: font, ?); no regressions on
-read-back.
+A single object cannot satisfy both +0x30 usages (inline magic vs
+dereference), so the earlier "tail of fontCtxObj" reading is withdrawn. The
+metrics cluster's argument is a **union**: font ID (<0x100; e.g. literal 1
+at 0x42DBEF) or s2FontObj* (object-field values such as [obj+0xC] at
+0x42B28C/0x42B417, classifiable only at runtime).
+
+**+0x34 pointer-vs-count question (preserved open — owner directive; no
+historical interpretation selected):** the original observation — blob
+pointer reads at +0x34 (metrics cluster) vs column-count reads at +0x34
+(fontTextDraw) — is re-characterized by the two-object model: each read
+is consistent **within its own type** (s2FontObj+0x34 = blob pointer;
+fontCtxObj+0x34 = column count). What remains open and statically
+unclassifiable: (a) whether `fontCtxObj->s2ObjPtr` points at an s2FontObj
+or at a plain byte array; (b) which concrete object the object-field
+callers pass to the metrics cluster; (c) which object type the cell-grid
+renderer path was written for in the original design. No runtime capture
+exists for this binary.
+
+**Ghidra applications (all read-back verified; reconciliation
+2026-11-27):**
+
+- Structures created (root DTM): `fontCtxObj` (200B; fields re-verified
+  against the full 149-instruction fontTextDraw decode — metrics range is
+  +0x04..+0x13, and +0x30/+0x34 fields renamed `s2ObjPtr`/`colCount` after
+  the deref-vs-compare finding), `s2FontObj` (60B), `fntFaceBlock` (24B),
+  `fntRowRec` (16B — no pad; on-disk stride exactly 0x10).
+- **Type application:** `fontCtxObj *` applied to fontMetricsGet/fontTextDraw
+  param 1; `s2FontObj *` applied to fontCtxWidth/fontAscent/fontLineHeight/
+  fontCharWidthOf/fontCharWidthOf2 param 1 (ID<0x100 overload documented in
+  comments). Pre-mutation snapshots: `(int fontId, undefined4 * recOff)` /
+  `(uint param_1)` etc. — read-back confirms names + types, no regressions.
+- **Data application (embedded fonts, .data):** `fntFaceBlock[1/2/1/1]` +
+  `fntRowRec[584/413+413/413/413]` at 0x47B430/0x47B448 (Myoklonika),
+  0x47F060/0x47F090+0x47ED18 (Grand Mal), 0x483D78/0x483D90 (Panitaka),
+  0x486364/0x48637C (Tonik-klonik). Hexdump re-check: row records intact
+  (sequential u32BE keys 0,1,2,…). The pixel pools remain byte data
+  (variable-size, verified by fnt_inspect.py, deliberately not typed).
+- Comments updated: fontMetricsGet, fontTextDraw, labelWidgetFill,
+  fontAscent, fontCtxWidth (two-object model + union semantics).
+- Parameter-name preservation: no `param_N` introduced or lost; fontTextDraw
+  pre-mutation state was auto param_1..3, now named.

@@ -892,6 +892,16 @@ Batch E: all six priorities COMPLETE (6th at documented E3 boundary).
 
 ## S2 Batch F — font and text pipeline (2026-11-24; doc 21)
 
+> **SUPERSEDED IN PART** by Batch V + reconciliation (2026-11-27):
+> `fontGlyphRowBlit3` → `blitRow1bpp` (0x450450); `fontServiceTable` →
+> `resNameIdTable` (0x45EA50); .fnt record model corrected (doc 21
+> §1.2/§1.3/§14.6: face blocks + per-face row tables, poolOff @+0x04,
+> advance @+0x0C single-use, no inline mode, default row 26); fontSelect ID
+> table corrected (doc 21 §3); header author pstr located at +0x58 (doc 21
+> §1.1); `fontCtxObj`/`s2FontObj`/`fntFaceBlock`/`fntRowRec` structures
+> created + applied (reconciliation entry below). Batch F-era name changes
+> below remain valid unless the supersession notes above state otherwise.
+
 | Item | Kind | Detail |
 |---|---|---|
 | 0x44DDD0 | rename+proto+comment | **fontSelect(fontId, &glyphRecOff, refChar)** — ID table 3/4→GrandMal(0x0F/0x0C), 99/100→Myoklonika, 101/102→Panitaka, 103→Tonik-klonik; else g_appFont + g_appFontInit byte; ref record via fntParseFace |
@@ -1011,11 +1021,14 @@ Myoklonika 8x9) correct.
 ## S2 Batch V (V1) — F-5 font metrics/text-draw gate + fontCtxObj (2026-11-27; doc 21 §14.7)
 
 - **fontCtxObj** (NEW structure, root DTM, 200B): magic 0x8521B2D1 @+0;
-  metrics[4] @+4 (metrics[1] @+8 = cell-layout x origin); charW @+0x14;
-  flags @+0x18 (bit 0x200); s2magic @+0x30 (0x6ABA021A); blob @+0x34;
-  recOff @+0x38; inkPtrs @+0x3C; inkCount @+0x40; renderer (fn ptr) @+0x50;
-  rendererCtx @+0x54; modeFlag @+0xC4. Resolves Batch F "S2 object head
-  unknown" (the 0x6ABA021A fields were the TAIL of this object).
+  metrics[4] @+4..+0x13 ([1] @+8 = cell-layout x origin; [3] @+0x10 =
+  max-row bound); charW @+0x14; flags @+0x18 (bit 0x200); **s2ObjPtr
+  @+0x30 (POINTER — dereferenced by fontTextDraw @0x4246AC)**; **colCount
+  @+0x34**; recOff @+0x38; inkPtrs @+0x3C; inkCount @+0x40; renderer
+  (fn ptr) @+0x50; rendererCtx @+0x54; modeFlag @+0xC4.
+  **CORRECTION (reconciliation):** the 0x6ABA021A object is a DISTINCT type
+  (s2FontObj), not the tail of fontCtxObj — Batch F "S2 object head
+  unknown" REMAINS OPEN (see reconciliation entry).
 - **fontMetricsGet** (0x4230C0): named proto `void (fontCtxObj * fontCtx,
   uint * outMetrics)` + comment — validates magic, copies metrics[4].
 - **fontTextDraw** (0x424550): named proto `void (fontCtxObj * fontCtx,
@@ -1025,7 +1038,65 @@ Myoklonika 8x9) correct.
 - **labelWidgetFill** (0x4101C0): named proto `(int * widget, char * string,
   int * geom)` + comment — widget+8 = fontCtx; metrics -> 0x42A200 ->
   fontTextDraw.
-- **DISCREPANCY (open, documented):** [ctx+0x34] blob pointer (metrics
-  cluster, byte-indexed) vs column count (cell-grid path) — runtime-written
-  field, no static resolution; dual interpretation recorded.
+- **DISCREPANCY (open, preserved per owner directive):** [ctx+0x34] blob
+  pointer (metrics cluster) vs column count (cell-grid path) —
+  re-characterized by the reconciliation two-object model (s2FontObj+0x34 =
+  blob pointer; fontCtxObj+0x34 = colCount; each consistent within its type).
+  Remaining open: s2ObjPtr pointee identity; object-field caller targets.
+  No historical interpretation selected.
 All renames/protos read-back verified (signature readbacks match).
+
+## S2 Batch V (reconciliation) — font model correction checkpoint (2026-11-27; doc 21 §1.1/§3/§14.7)
+
+Owner-directed reconciliation of V1 findings before V2. All items read-back
+verified.
+
+**Structures (root DTM):**
+- `s2FontObj` NEW (60B): unk0[12] (+0x00..+0x2F head UNKNOWN, preserved
+  open), magic @+0x30 (0x6ABA021A), blob @+0x34, recOff @+0x38.
+- `fontCtxObj` MODIFIED: +0x30 field renamed s2magic → **s2ObjPtr**
+  (pointer; deref evidence 0x4246AC); +0x34 renamed blob → **colCount**;
+  metrics range corrected to +0x04..+0x13 (16B).
+- `fntFaceBlock` NEW (24B): ascent, descent, b2, b3, unkA/B/C, rowCount,
+  rowBase.
+- `fntRowRec` NEW (16B, no pad): key, poolOff, w, h, xOff, yOff, advance.
+
+**Parameter retypes (pre-mutation snapshots taken; read-back verified, no
+param_N regressions):**
+| Function | Before | After |
+|---|---|---|
+| fontCtxWidth (0x445E90) | `(int fontId, undefined4 * recOff)` | `uint (s2FontObj * font, uint * recOff)` |
+| fontAscent (0x446360) | `(uint param_1)` | `uint (s2FontObj * font)` |
+| fontLineHeight (0x446240) | `(uint param_1)` | `uint (s2FontObj * font)` |
+| fontCharWidthOf (0x4460C0) | `(uint param_1, byte * param_2, uint param_3)` | `uint (s2FontObj * font, byte * charPtr, undefined4 arg3)` |
+| fontCharWidthOf2 (0x446130) | `(uint param_1, byte * param_2, uint param_3, uint param_4)` | `uint (s2FontObj * font, byte * arg2, undefined4 arg3, undefined4 arg4)` |
+
+**Data applications (embedded fonts, .data; hexdump re-check passed):**
+- Myoklonika: fntFaceBlock[1] @0x47B430; fntRowRec[584] @0x47B448
+- Grand Mal: fntFaceBlock[2] @0x47F060; fntRowRec[413] @0x47F090; fntRowRec[413] @0x47ED18
+- Panitaka: fntFaceBlock[1] @0x483D78; fntRowRec[413] @0x483D90
+- Tonik-klonik: fntFaceBlock[1] @0x486364; fntRowRec[413] @0x48637C
+- Pixel pools left as byte data (variable-size; verified by fnt_inspect.py).
+
+**Raw-data corrections (Python PE read, authoritative):**
+- Embedded fonts start with `%FNT` (25 46 4E 54) — a Ghidra hexdump read
+  from an earlier session ("21 B2 51 85" at 0x47B324) was a transient
+  corruption artifact; header layout re-verified across all 15 fonts.
+- Author pstr @ **+0x58** (not +0x38): "Haxial" in all 4 embedded fonts;
+  "VletFont\u2122" bit1/Harial; up to 24 name bytes (OCRAP).
+- Header face-count @+0x07 = 1 in ALL 15 fonts (faces); face-slot count
+  @0xC3 = size-variant block count {1,2,3,4}.
+- Tonik-klonik face block: D = 413, E = 0x124 (an older session note of
+  D = 332/E = 0x130 was a misread; current raw read + fnt_inspect.py
+  15/15 cross-verified).
+- Grand Mal face blocks: D = 413/413, E = 0x13C/0x2630 (E1 = align4(pool0
+  end), confirming the corrected E-sequence model; the old "+0x1000 stride"
+  wording in doc 21 §1.2 was a Batch F artifact).
+
+**Model correction (two-object):** fontCtxObj (0x8521B2D1 @+0) ≠ s2FontObj
+(0x6ABA021A @+0x30). Evidence: fontTextDraw dereferences [ctx+0x30]
+(0x4246AC) vs metrics cluster compares [arg+0x30] (0x446383 et al.).
+The +0x34 pointer/count question is preserved open per owner directive
+(no historical interpretation selected); remaining open items: s2ObjPtr
+pointee identity; object-field caller targets (0x42B28C/0x42B417 etc.);
+s2FontObj head +0x00..+0x2F.

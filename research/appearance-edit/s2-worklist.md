@@ -803,3 +803,21 @@ to enumerate literals — we list strings and diff ourselves.
   F-4, F-5, F-6, F-8, V1.4 corpus revalidation 15/15, fontCtxObj).
   F-7 (multi-line wrapping) = Batch F boundary, deferred to V2+.
 - next: V2.1 (part-to-widget/state mapping, 175 entries) per Batch V plan.
+
+## Reconciliation checkpoint (2026-11-27, owner-directed, pre-V2)
+- Doc 21 §9-13 + §1.1/§1.2/§1.3/§2/§3/§5/§6/§7.4 stale Batch F claims
+  corrected; §10 mutation record banner-marked superseded-in-part; §11/§13
+  reconciled; §14.1 scope note added; §14.7 rewritten (two-object model,
+  metrics range +0x04..+0x13, s2ObjPtr/colCount, +0x34 preserved open).
+- Header author pstr located @+0x58 (all 15 fonts; "Haxial" embedded);
+  "no author field" claim corrected. %FNT header re-verified raw (earlier
+  "21 B2 51 85" hexdump was corrupted). Tonik D=413/E=0x124 corrected.
+- fontCtxObj applied to fontMetricsGet/fontTextDraw (V1); s2FontObj NEW and
+  applied to 5 metrics-cluster params (snapshot + read-back verified).
+- fntFaceBlock (24B) + fntRowRec (16B) created AND applied to all 4
+  embedded fonts (.data, 7 set_data_type ops, hexdump re-check passed).
+- +0x34 pointer/count: re-characterized (two distinct types), PRESERVED
+  open per owner directive; no historical interpretation selected.
+- "No loader found" scoped to this build only (not evidence about other
+  Haxial components) — doc 21 §14.1 scope note.
+- NEXT: V2.1 part-to-widget/state mapping (G-4, 175 entries).
