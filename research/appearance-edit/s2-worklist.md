@@ -777,3 +777,29 @@ to enumerate literals — we list strings and diff ourselves.
     F-5 (fontTextDraw/fontMetricsGet param gate), F-6 (pool glyph w/h), F-7
     (wrapping), F-8 classify (done: no HAP font section), V1.4 corpus
     revalidation (uv), then V2 part mapping.
+- V1.3/F-2 RESOLVED (MAJOR CORRECTION): .fnt structure = count x 24B face
+  blocks (size variants: ascent/descent/rowCount D/rowBase E) + D x 16B
+  row tables ({key=cp, poolOff @+4, w, h, xOff, yOff, adv @+0xC}) + per-face
+  pixel pool densely packed in row order (block size ((w+7)>>3)*h);
+  block0.E = table + count*0x18, block k.E = align4(prev pool end);
+  fntParseFace 0x18 walk = face blocks, reqHeight = requested height
+  (12/15); default row = 26; "inline pixels" and "+0x0C dual-use" and
+  "4B extended alignment" all DISPROVEN (naive-model artifacts).
+  inkBlitCore fully decoded: whole-string UTF-8 blitter, 8 named args,
+  pool guard, blitRow1bpp dispatch {8,16,32}, penPos {x,y}, clipRect.
+  fnt_inspect.py rewritten; 15/15 fonts revalidated (V1.4).
+  Ghidra: 3 named prototypes + 3 comments (read-back verified).
+- V1 remaining: F-5 (fontTextDraw/fontMetricsGet param gate — inkBlitCore
+  part done), F-7 (multi-line wrapping — Batch F boundary; defer to V2+).
+- next: V1.5 (fontTextDraw/fontMetricsGet param gate) or proceed to
+  V2.1 (part-to-widget/state mapping) per owner priorities.
+- V1.5/F-5 RESOLVED: fontMetricsGet + fontTextDraw fully decoded (named
+  prototypes + comments); fontCtxObj structure created (0x8521B2D1 context,
+  200B, renderer callback @+0x50, inkPtrs @+0x3C); labelWidgetFill named.
+  Batch F "S2 object head unknown" resolved (tail of fontCtxObj). Open
+  detail: [ctx+0x34] blob-ptr vs count discrepancy (documented,
+  nonblocking).
+- **V1 COMPLETE** (F-1 negative, F-2 major correction, F-3 correction,
+  F-4, F-5, F-6, F-8, V1.4 corpus revalidation 15/15, fontCtxObj).
+  F-7 (multi-line wrapping) = Batch F boundary, deferred to V2+.
+- next: V2.1 (part-to-widget/state mapping, 175 entries) per Batch V plan.

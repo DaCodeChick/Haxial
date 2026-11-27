@@ -975,3 +975,57 @@ partToSkinDib (ext byte references). Project saved.
 Corrections: Batch F §8 "service registry" superseded (doc 21 §8);
 "0x44E470 fit helper" stale — it is fontCharWidthCore (Batch F rename;
 entry 0x44E470, doc 21 §14.3). All renames/protos read-back verified.
+
+## S2 Batch V (V1) — F-2 record-layout closure (2026-11-27; doc 21 §1.2/§1.3/§7.1/§14.6)
+
+**MAJOR CORRECTION:** Batch F's .fnt model (single 256-row table @0x10C,
++0x0C dual-use, "inline pixels", "4B extended alignment") is DISPROVEN.
+Corrected model (code-verified + corpus 15/15):
+
+- Face blocks: 24B @ 0x10C+k*0x18, k<count (count u8 @ face+0xB = #size
+  variants): {ascent, descent, b2=1, b3=0, A=B=C=0, D=rowCount u32BE
+  @+0x10, E=rowBase u32BE @+0x14}. block0.E = table + count*0x18;
+  block k.E = align4(pool end of face k-1).
+- Row tables: D x 16B @ blob+E: {key u32BE @+0 (== cp), poolOff u32BE @+4,
+  w @+8, h @+9, xOff @+0xA, yOff @+0xB, adv @+0xC, 3B pad}.
+- Row selection: cp<0x100 direct; cp>=0x100 fontGlyphSearch(cp, rowbase, D)
+  binary search [0x100, D-1] by bswap key; miss -> default row = rowbase+0x1A0
+  = ROW 26 (not "row 13").
+- fntParseFace: walks face blocks (0x18), first ascent >= reqHeight
+  (fontSelect passes 12/15 — "refChar" was a misread); returns recOff,
+  *out = ascent.
+- Pixel pool: per face, densely packed in ROW ORDER after row tables,
+  block size ((w+7)>>3)*h, MSB-first. NOT w*h (inkBlitCore guard is the
+  looser poolOff + w*h <= size). Dedup: rows may share a pool offset.
+- inkBlitCore = whole-string UTF-8 blitter (8 args, named prototype set);
+  row+0xB = y bearing (draw y = penY + yOff) — not a "tag".
+
+Ghidra (read-back verified): 3 named prototypes (fntParseFace, inkBlitCore,
+fontGlyphSearch — param_N defaults replaced), 3 detailed comments.
+fnt_inspect.py REWRITTEN to corrected model (old tool's 15/15 was an
+artifact of the naive base; its pool/inline counts invalid). New tool:
+15/15 fonts pass (11 corpus + 4 embedded), incl. E-sequence, key==cp,
+row-order pool packing, in-bounds guards. Spot-rendered 'A' (Harial 7x9,
+Myoklonika 8x9) correct.
+
+## S2 Batch V (V1) — F-5 font metrics/text-draw gate + fontCtxObj (2026-11-27; doc 21 §14.7)
+
+- **fontCtxObj** (NEW structure, root DTM, 200B): magic 0x8521B2D1 @+0;
+  metrics[4] @+4 (metrics[1] @+8 = cell-layout x origin); charW @+0x14;
+  flags @+0x18 (bit 0x200); s2magic @+0x30 (0x6ABA021A); blob @+0x34;
+  recOff @+0x38; inkPtrs @+0x3C; inkCount @+0x40; renderer (fn ptr) @+0x50;
+  rendererCtx @+0x54; modeFlag @+0xC4. Resolves Batch F "S2 object head
+  unknown" (the 0x6ABA021A fields were the TAIL of this object).
+- **fontMetricsGet** (0x4230C0): named proto `void (fontCtxObj * fontCtx,
+  uint * outMetrics)` + comment — validates magic, copies metrics[4].
+- **fontTextDraw** (0x424550): named proto `void (fontCtxObj * fontCtx,
+  char * string, int * geom, uint reserved)` + comment — cell-grid renderer:
+  per-column dispatch to fontCtx->renderer callback with (geom, &metrics[0],
+  string, cellData=byte[s2+col]|mode, col, ink, ctx). 4 callers.
+- **labelWidgetFill** (0x4101C0): named proto `(int * widget, char * string,
+  int * geom)` + comment — widget+8 = fontCtx; metrics -> 0x42A200 ->
+  fontTextDraw.
+- **DISCREPANCY (open, documented):** [ctx+0x34] blob pointer (metrics
+  cluster, byte-indexed) vs column count (cell-grid path) — runtime-written
+  field, no static resolution; dual interpretation recorded.
+All renames/protos read-back verified (signature readbacks match).

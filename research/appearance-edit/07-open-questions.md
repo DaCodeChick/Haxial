@@ -297,16 +297,28 @@ corpus)**
    same discipline as `09` §1).
 
 **Stage S2 — Remaining evidence closure**
-5c. **Batch V (final audit & readiness) — IN PROGRESS (2026-11-27).**
-   V1 font closure: F-1 RESOLVED negative (no .fnt loader in this build —
-   dead string 0x45A288, no ".fnt" extension string, built-in-only font
-   refs); F-3 RESOLVED with CORRECTION (Batch F "fontServiceTable" was a
-   misread — no ID-dispatched font service registry exists; doc 21 §8
-   superseded, §14); F-4 RESOLVED (0x444600 = paletteNearest; 0x44E470 =
-   fontCharWidthCore); F-8 RESOLVED (HAP has no font section — font choice
-   is application-level, nonblocking). 0x450450 renamed blitRow1bpp
-   (shared font/DIB 1bpp row blitter). Remaining: F-2, F-5, F-6, F-7,
-   V1.4 corpus revalidation; then V2–V7.
+5c. **Batch V — V1 font pipeline closure COMPLETE (2026-11-27).**
+   V1 results: F-1 RESOLVED negative (no .fnt loader in this build — dead
+   string 0x45A288, no ".fnt" extension string, built-in-only font refs,
+   g_appFont written only by skinInstall). F-3 RESOLVED with CORRECTION
+   (Batch F "fontServiceTable" was a misread — no ID-dispatched font
+   service registry; doc 21 §8 superseded). F-4 RESOLVED (0x444600 =
+   paletteNearest; 0x44E470 = fontCharWidthCore). F-8 RESOLVED (HAP has no
+   font section — application-level font choice). **F-2 RESOLVED with MAJOR
+   CORRECTION** (doc 21 §1.2/§1.3/§14.6): .fnt = count x 24B face blocks
+   (size variants: ascent/descent/rowCount/rowBase) + D x 16B row tables
+   {key=cp, poolOff @+4, w, h, xOff, yOff, adv @+0xC} + per-face pixel pool
+   densely packed in row order (block size ((w+7)>>3)*h); fntParseFace
+   walks face blocks (reqHeight = requested height 12/15); default row 26;
+   Batch F naive model (single 256-row table @0x10C, +0x0C dual-use,
+   inline pixels, 4B extended alignment) DISPROVEN — fnt_inspect.py
+   rewritten, 15/15 fonts revalidated. F-5/F-6 RESOLVED (doc 21 §14.7):
+   fontCtxObj (magic 0x8521B2D1, 200B) structure created;
+   fontMetricsGet/fontTextDraw/labelWidgetFill fully named; cell-grid
+   renderer decoded (renderer callback @+0x50). V1 Ghidra: 6 named
+   prototypes, 6 comments, 1 structure (all read-back verified). F-7
+   (multi-line wrapping) deferred to V2+. **NEXT: V2.1 part-to-widget/state
+   mapping (175 entries) + G-1..G-8.**
 
 5b. ~~C-blob rendering pipeline (Batch G).~~ **DONE (doc 22)** — full
    header/ext/flags semantics, renderer family, DIB engine, editor part
