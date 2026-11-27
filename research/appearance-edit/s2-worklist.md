@@ -758,3 +758,22 @@ to enumerate literals — we list strings and diff ourselves.
 
 **Next: Batch V** (final audit & readiness) — the audit document will be
 `23-s2-evidence-closure-and-readiness.md` (doc 22 was taken by Batch G).
+
+## BATCH V (final audit & readiness) — started 2026-11-27
+- **V1 (font closure) — in progress:**
+  - V1.1/F-3 RESOLVED (CORRECTION): no font service registry exists; Batch F
+    fontServiceTable = misread of 0x45EA48 menu name/ID table + 0x45B8xx font
+    data block. Label renamed resNameIdTable. No ID dispatcher, no pointers.
+  - V1.2/F-1 RESOLVED (negative): no .fnt loader in build (dead error string
+    0x45A288, no ".fnt" ext string, built-in-only font refs, g_appFont
+    written only by skinInstall). S2 font object = consumption-only
+    interface (10 magic sites, metrics cluster; constructor external).
+  - F-4 RESOLVED: 0x444600 = paletteNearest (decoded + call-verified;
+    partToSkinDib count-arg quirk noted); 0x44E470 = fontCharWidthCore.
+  - 0x450450 renamed blitRow1bpp (shared font/DIB primitive).
+  - Ghidra: 3 renames, 1 proto, 3 comments (read-back verified); project save +
+    commit at checkpoint.
+  - NEXT: F-2 (row-array origin/stride/alignment — code + corpus cross-check),
+    F-5 (fontTextDraw/fontMetricsGet param gate), F-6 (pool glyph w/h), F-7
+    (wrapping), F-8 classify (done: no HAP font section), V1.4 corpus
+    revalidation (uv), then V2 part mapping.

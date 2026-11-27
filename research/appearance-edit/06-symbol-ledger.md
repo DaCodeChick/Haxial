@@ -959,3 +959,19 @@ extContentFill's loop head (0x426AD4) and corpus-verified:
 Ghidra updated: cBlobExtBlock structure replaced (colourB after pad);
 comments corrected on extContentFill, partDraw, partDrawV, nineSliceBlitC,
 partToSkinDib (ext byte references). Project saved.
+
+## S2 Batch V (V1) — font pipeline closure (2026-11-27; doc 21 §8/§14)
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x444600 | rename+proto+comment | **paletteNearest** (was FUN_00444600) — (palette, count, targetColour, mode): min per-channel abs distance; branch B (mode bit0) adds channel-0 with 0x1000 zero/nonzero penalty (strict transparency match); returns best index; call-verified at blitRow1bpp (transp index = nearest 0); partToSkinDib full-palette path passes arr[0] as count (suspected latent original bug, degenerate 8bpp-only) |
+| 0x450450 | rename+comment | **blitRow1bpp** (was fontGlyphRowBlit3) — shared 1bpp row rasterizer: font glyph blit (inkBlitCore, h≤24) AND DIB engine 1bpp blitter (jmp 0x4575CC idx0); family split documented |
+| 0x45EA50 | data label rename | **resNameIdTable** (was fontServiceTable) — Batch F "font service registry" DISPROVEN: 19-entry {name4cc, id 0x40..0x8C step4} table + menu-title pstr pool; no code xrefs, no stored pointer; PROBABLE menu resource table ("ofin"↔info, "lacs"↔scal bswap FourCCs) |
+| 0x45A288 | evidence (no mutation) | "While loading font file: " — dead string: 0 xrefs + 0 stored pointers; no ".fnt" extension string in binary → **no .fnt file loader in this build** (F-1 resolved negative) |
+| 0x6ABA021A | evidence | S2 font object magic: 10 sites, all in metrics cluster 0x445EBA–0x446386; consumed, never constructed in this binary (constructor external) |
+| F-2 | open | row-array base origin (0x10C vs [EBP-0x5C]), stride 0x18 vs 0x10, extended-region alignment — next V1 item |
+| V2-FDB | backlog | 0x45B7E0–0x45B8A0+ font data block (name pstrs + {code ptr, float, ptr} mixed runs); nonblocking |
+
+Corrections: Batch F §8 "service registry" superseded (doc 21 §8);
+"0x44E470 fit helper" stale — it is fontCharWidthCore (Batch F rename;
+entry 0x44E470, doc 21 §14.3). All renames/protos read-back verified.

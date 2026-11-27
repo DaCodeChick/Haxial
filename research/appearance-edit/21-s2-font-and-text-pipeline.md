@@ -379,27 +379,30 @@ negative IAT inspection (Batch E IAT verification covered GDI: only
 
 ---
 
-## 8. Service-registry exposure — [C] CONFIRMED (partial extent)
+## 8. Service-registry exposure — **SUPERSEDED (Batch V correction)**
 
-`fontServiceTable` (anchor 0x45EA50) is a run of `{fnPtr, serviceId}` u32
-pairs. Verified font entries:
+The Batch F identification of a `fontServiceTable` ID-dispatch registry at
+0x45EA50 is **DISPROVEN** (V1, 2026-11-27). Batch F misread two unrelated data
+regions as `{fnPtr, serviceId}` pairs:
 
-| serviceId | Function |
-|---|---|
-| 0x0045B814 | fontSelect |
-| 0x0045B815 | fntParseFace |
-| 0x0045B816 | fontGlyphSearch |
-| 0x0045B817 | inkBlitCore |
-| 0x0045B818 | fontCharWidth |
-| 0x0045B819 | fontCharWidthCore |
-| 0x0045B81A | fontRecHeight |
-| 0x0045B81B | 0x44E5F0 |
-| 0x0045B81C–0x0045B859+ | 0x44E8E0, 0x44EB60, 0x44ED30, 0x44EF30, 0x44F210, 0x44F3C0, 0x44F3D0, 0x44F3E0, 0x44F580, 0x44F7D0, 0x44F9B0, 0x44FB30, 0x44FC30, 0x44FE50, ... |
+1. **0x45EA48–0x45EAE0** is a `{name4cc, id}` table (19 entries, ids
+   0x40..0x8C step 4) followed by a pstr pool of menu titles ("Information",
+   "Colors", "Images", "Icons", "File Icons", "Mouse Icons", "New", "Open...",
+   "Import Colors...", "Save", "Save As...", "Close", "Recent 1", "Recent 2",
+   ...). No code xrefs, no stored pointer. PROBABLE: menu resource name/ID
+   table (sample-menu icon names, bswap-stored FourCCs — "ofin"↔info,
+   "lacs"↔scal). Ghidra label renamed `fontServiceTable` → `resNameIdTable`.
+2. **0x45B7E0–0x45B8A0+** is a font data block: the four embedded font names
+   as pstrs ("Myoklonika", "Tonik-klonik", "Grand Mal", "Panitaka"), followed
+   by a mixed run of {code pointers (0x44F4xx font cluster), floats,
+   self-pointers} — per-font metadata of undetermined structure (backlog
+   V2-FDB; not implementation-blocking).
 
-The table has no direct xrefs: services are dispatched by numeric ID through
-an indirect mechanism (table base presumably held in a .data pointer, address
-computed at call time). This explains the missing xrefs on font strings.
-Full table extent + dispatcher = BACKLOG F-3.
+There is **no ID-dispatched font service registry** in this build: every font
+function is directly called from the render path, and the "missing xrefs on
+font strings" have a simpler explanation — the strings are data-block content
+(not code-referenced) and "While loading font file: " (0x45A288) is a **dead
+string with zero references** (no font-file loader in this build; see §14).
 
 ---
 
@@ -481,14 +484,14 @@ own future batch).
 
 | ID | Item | Why deferred |
 |---|---|---|
-| F-1 | Locate the `.fnt` file loader (user font install → S2 object constructor) | Dispatched via service registry (no direct xrefs); needs dispatcher found first (F-3) |
-| F-2 | Reconcile (a) fntParseFace walk stride 0x18 vs 0x10 row stride; (b) the row-array base ([EBP-0x5C] in inkBlitCore) vs the face table offset 0x10C; (c) extended-region alignment (corpus keys decode 4 bytes off `0x10C + 0x100*16`) | All observed [C]/[S][R]; ASCII direct index (base + cp*16), default row 13, and all field offsets are code-CONFIRMED; only the base origin and extended alignment remain |
-| F-3 | Service-table full extent + ID dispatcher function | Cross-cutting module architecture; likely serves other modules too |
-| F-4 | 0x444600 (row-value cache) and 0x44E470 (fit helper) internals | Single callers, narrow impact; decode when F-3 lands |
+| F-1 | ~~Locate the `.fnt` file loader~~ **RESOLVED (V1, §14.1)** — no .fnt loader exists in this build (dead error string, no ".fnt" extension string, built-in-only font refs) |
+| F-2 | Reconcile (a) fntParseFace walk stride 0x18 vs 0x10 row stride; (b) the row-array base ([EBP-0x5C] in inkBlitCore) vs the face table offset 0x10C; (c) extended-region alignment (corpus keys decode 4 bytes off `0x10C + 0x100*16`) | OPEN — V1 next item; base origin and extended alignment only |
+| F-3 | ~~Service-table full extent + ID dispatcher~~ **RESOLVED (V1, §8/§14.5, corrected)** — no ID-dispatched service registry exists in this build |
+| F-4 | ~~0x444600 + 0x44E470 internals~~ **RESOLVED (V1, §14.3)** — 0x444600 = `paletteNearest` (decoded, call-verified); 0x44E470 = `fontCharWidthCore` (Batch F; the "fit helper" label was stale) |
 | F-5 | fontTextDraw/fontMetricsGet per-parameter audit | S1-level names exist; full param/local gate for these two deferred to Batch V unless encountered |
 | F-6 | Row fields +0x08..+0x0B exact roles (w/h/x/y — code-CONFIRMED as the dimension fields inkBlitCore reads); w/h source for pool-glyph records (w=0/h=0 in corpus); inline-pixel row semantics | Code reads them [C]; corpus values 0 in pool-glyph rows [S][R]; non-zero examples needed (font-editor write path) |
 | F-7 | Multi-line text wrapping | Not traced; interaction layer beyond Batch F boundary |
-| F-8 | Per-appearance font selection (does an appearance choose g_appFont differently?) | skinInstall path [C] only; corpus .hap fonts not present (E3-11) |
+| F-8 | ~~Per-appearance font selection~~ **RESOLVED (V1)** — the HAP directory has no font section (C/D/E/F/G only); font choice is application-level (fontSelect IDs + g_appFont default); nonblocking for S3 |
 
 ---
 
@@ -502,7 +505,8 @@ own future batch).
   were **byte-swap artifacts**; true sizes 0x4D18/0x25EC/0x2868 verified by
   pool-junction arithmetic (§2). The format is plain u32BE in all 15 fonts —
   no writer anomaly exists.
-- `fontServiceTable` anchor 0x45EA50 is mid-table; true start/end unknown.
+- ~~`fontServiceTable` anchor 0x45EA50 is mid-table; true start/end unknown.~~
+  **RESOLVED (V1)** — no such table exists; §8 superseded.
 - The S2 font object's fields before +0x30 (object head, vtable, size) are
   unknown — only the three consumed offsets are confirmed.
 - No runtime rendering equivalence is claimed (no Haxial runtime executable
@@ -512,5 +516,78 @@ own future batch).
 - Pixel rows are MSB-first; byte order of the *inline* 12-byte pixel area vs
   the external pool is identical (MSB-first in both, per blit1 code).
 - Nothing here implies the modern implementation must keep 1bpp, UTF-8
-  fallback 0xFFFD, or the service registry: these are legacy compatibility
-  facts, not design mandates.
+  fallback 0xFFFD: these are legacy compatibility facts, not design mandates.
+
+## 14. Batch V (V1) closure — font pipeline (2026-11-27)
+
+### 14.1 F-1 — no external .fnt loader in this build [C]
+
+Evidence (all negative-result, code + raw-data verified):
+
+- String "While loading font file: " @0x45A288: **zero cross-references**
+  (Ghidra xref query) and **zero stored pointers** (raw 32-bit LE scan of the
+  whole PE). Dead string — the error path of a font-file loader that is not
+  present in AppearanceEdit 1.400.
+- No ".fnt" extension string exists anywhere in the binary (string search,
+  case-sensitive: no matches). A font import dialog would need a filter
+  string; there is none.
+- The only font source pointers in .text are the four built-in blob addresses
+  (0x47B324 Myoklonika, 0x47EF54 Grand Mal, 0x483C6C Panitaka, 0x486258
+  Tonik-klonik), all referenced from `fontSelect` (ID table) — plus one
+  Myoklonika reference at 0x4290ED inside `skinInstall`'s third block
+  (the g_appFont default-font tail, Batch F).
+- g_appFont (0x46698C) writers: **only** skinInstall (0x4290E7); readers:
+  fontSelect (0x44DE70) and skinInstall.
+
+**Conclusion:** fonts in this build = built-in blobs via fontSelect IDs +
+g_appFont default. External .fnt loading is a capability of another Haxial
+component (runtime/font module), not of the editor. For S3: `haxial-compat`
+implements the .fnt *format* (from corpus + code); file-loading plumbing is a
+modern design choice, not recovered behavior. Classification: **Resolved**
+(negative result).
+
+### 14.2 S2 font object — consumption-only interface [C]
+
+The magic 0x6ABA021A appears in exactly ten sites, all in .text
+0x445EBA–0x446386 = the metrics/width cluster (fontCtxWidth 0x445E90 and its
+siblings fontCharWidthOf/Of2, fontLineHeight, fontFitWidth, fontAscent). The
+object is **consumed** (magic check at +0x30, then +0x34/+0x38 read), never
+**constructed** in this binary. The constructor lives in the external font
+module (consistent with 14.1). Documented as a consumption-only interface;
+object head (fields before +0x30) remains unknown (as in Batch F).
+
+### 14.3 F-4 — paletteNearest (0x444600) decoded [C]
+
+`paletteNearest(palette, count, targetColour, mode) -> best index` (or 0):
+
+- Branch A (mode bit0 clear): per entry, d = |byte1(v)−byte1(t)| +
+  |byte2(v)−byte2(t)| + |byte3(v)−byte3(t)| (u32 bytes 8..24; channel 0
+  excluded); strict `< best` update, first hit wins ties.
+- Branch B (mode bit0 set): adds |byte0(v)−byte0(t)| with a 0x1000
+  zero-vs-nonzero penalty (transparency channel must match exactly).
+- Convention verified at the blitRow1bpp call site (transparency index =
+  nearest palette entry to 0x00000000, mode 0) — this is how DIBs obtain
+  their transparent index.
+- Callers: blitRow1bpp, pairRecordBuild, partToSkinDib, 0x441420, 0x4414D0.
+- **Quirk (suspected latent original bug):** partToSkinDib's full-palette
+  path (count ≥ 0x100, only reachable for 8bpp parts using all 256 entries)
+  pushes `arr[0]` (a colour) in the `count` argument slot. Degenerate path;
+  no corpus part triggers it. The Rust implementation should use the intended
+  semantics (count = palette count) — see doc 23 quirk notes.
+
+### 14.4 blitRow1bpp rename [C]
+
+0x450450 renamed fontGlyphRowBlit3 → **blitRow1bpp**: it is both a font glyph
+row rasterizer (inkBlitCore family, height ≤24) and the DIB engine's 1bpp row
+blitter (jmp table 0x4575CC idx0). The font-only name was a misdescription.
+fontGlyphRowBlit1/2 (font-only, height ≤8/≤16) keep their names; the family
+split is documented in both docs and the ledger.
+
+### 14.5 F-3 — correction of the Batch F service-table finding [C]
+
+See §8 (superseded). The Batch F table of "serviceId → function" was a
+misread of the 0x45B8xx font data block + 0x45EA48 menu name/ID table.
+No dispatcher code exists; no pointer to either region exists; all font
+functions are directly called. Ghidra label `fontServiceTable` renamed to
+`resNameIdTable` (0x45EA50). The 0x45B820+ mixed block (pstrs → {code ptr,
+float, ptr} runs) is backlog V2-FDB (font data block), nonblocking.

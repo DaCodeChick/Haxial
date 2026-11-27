@@ -297,6 +297,17 @@ corpus)**
    same discipline as `09` §1).
 
 **Stage S2 — Remaining evidence closure**
+5c. **Batch V (final audit & readiness) — IN PROGRESS (2026-11-27).**
+   V1 font closure: F-1 RESOLVED negative (no .fnt loader in this build —
+   dead string 0x45A288, no ".fnt" extension string, built-in-only font
+   refs); F-3 RESOLVED with CORRECTION (Batch F "fontServiceTable" was a
+   misread — no ID-dispatched font service registry exists; doc 21 §8
+   superseded, §14); F-4 RESOLVED (0x444600 = paletteNearest; 0x44E470 =
+   fontCharWidthCore); F-8 RESOLVED (HAP has no font section — font choice
+   is application-level, nonblocking). 0x450450 renamed blitRow1bpp
+   (shared font/DIB 1bpp row blitter). Remaining: F-2, F-5, F-6, F-7,
+   V1.4 corpus revalidation; then V2–V7.
+
 5b. ~~C-blob rendering pipeline (Batch G).~~ **DONE (doc 22)** — full
    header/ext/flags semantics, renderer family, DIB engine, editor part
    pipeline; backlog G-1..G-9. Remaining S2 open items: G-4 (175-entry
