@@ -9,7 +9,11 @@ Validates the Batch-G header model against raw data:
   +0x06 u8 palCount-1      +0x0F u8 capB
   +0x07 u8 transIdx        +0x10 u32BE field2
   +0x14..+0x1F ext (if flags & 0x10):
-      +0x14 u8x3 gradStart, +0x17 u8 mode, +0x18 u8x3 gradEnd, +0x1B u8 ?,
+      +0x14 u8 mode (1=H gradient, 2=V gradient),
+      +0x15..+0x17 u8x3 gradA (B,G,R on disk),
+      +0x18 u8 pad (always 0x00 in corpus),
+      +0x19..+0x1B u8x3 gradB (B,G,R on disk),
+      +0x1C..+0x1F u8x4 content insets {L,T,R,B},
       +0x1C..+0x1F u8x4 insets (L, T, R, B)
   palette (pal x 4B), then pixels (stride x h), then secondary row
   (rowBytes at bpp = flags low nibble, if mode in {2,4,8}).
@@ -112,7 +116,7 @@ def analyze_c(c, tag, report):
         st["field2"][f2] += 1
         if ext:
             st["ext"] += 1
-            st["extmode"][c[off + 0x17]] += 1
+            st["extmode"][c[off + 0x14]] += 1
         if mode in (2, 4, 8):
             st["mode248"][mode] += 1
             st["secondary"][mode] += 1
@@ -179,7 +183,7 @@ def main():
     print(f"flags&1 (tiled) parts: {agg['tiled']}")
     print(f"mode 2/4/8 (secondary row) parts: { {k: v for k, v in sorted(agg['mode248'].items())} }")
     print(f"bpp dist: { {k: v for k, v in sorted(agg['bpp'].items())} }")
-    print(f"ext (flags&0x10) parts: {agg['ext']}, ext mode byte @+0x17: { {hex(k): v for k, v in sorted(agg['extmode'].items())} }")
+    print(f"ext (flags&0x10) parts: {agg['ext']}, ext mode byte @+0x14: { {hex(k): v for k, v in sorted(agg['extmode'].items())} }")
     print(f"field0 top10: { [(hex(k), v) for k, v in agg['field0'].most_common(10)] }  distinct={len(agg['field0'])}")
     print(f"field2 top10: { [(hex(k), v) for k, v in agg['field2'].most_common(10)] }  distinct={len(agg['field2'])}")
     if report:

@@ -714,8 +714,9 @@ to enumerate literals — we list strings and diff ourselves.
 **Batch G — DONE (2026-11-24, doc 22, Ghidra saved):**
 - C-blob file layout closed: 20B header (w/h u16BE, flags, bpp, palCount-1,
   transIdx, field0 clearColour u32BE @+8, caps @+0xC..+0xF, field2 margins
-  u32BE @+0x10) + 12B ext block @+0x14 iff flags & 0x10 (mode @+0x14,
-  gradA 3B @+0x15, gradB 3B @+0x18, pad, insets 4B @+0x1C) + palette +
+  u32BE @+0x10) + 12B ext block @+0x14 iff flags & 0x10 (mode @+0x14, gradA 3B BGR @+0x15,
+  pad @+0x18, gradB 3B BGR @+0x19, insets 4B @+0x1C; offsets corrected per
+  loop-head decode + corpus check) + palette +
   pixels. Palette precedes pixels; stride formula both tables.
 - field0 = surface clear/fill COLOUR (not a flag): 3 consumer families
   (widgetBaseFill, bmpSetCellState, mbarDrawTitleItem) + editor verbatim

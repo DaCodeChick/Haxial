@@ -117,13 +117,13 @@ Present iff `flags & 0x10`. 12 bytes at +0x14:
 
 ```
 +0x14  u8   mode      0 = none, 1 = horizontal gradient, 2 = vertical gradient
-+0x15  u8   gradA[0]  gradient start R
-+0x16  u8   gradA[1]  G
-+0x17  u8   gradA[2]  B
-+0x18  u8   gradB[0]  gradient end R
-+0x19  u8   gradB[1]  G
-+0x1A  u8   gradB[2]  B
-+0x1B  u8   pad       0x00 in all 18 corpus ext parts
++0x15  u8   gradA[0]  gradient start (B, on disk) — colour bytes are B,G,R on disk
++0x16  u8   gradA[1]  (G) — same convention as HAP [00][RR][GG][BB] pixel order
++0x17  u8   gradA[2]  (R)
++0x18  u8   pad       never read by extContentFill; 0x00 in all 18 corpus parts
++0x19  u8   gradB[0]  gradient end (B, on disk)
++0x1A  u8   gradB[1]  (G)
++0x1B  u8   gradB[2]  (R)
 +0x1C  u8   insetL    content-rect insets (x offset, right subtract)
 +0x1D  u8   insetT    (y offset)
 +0x1E  u8   insetR    (width subtract)
@@ -133,22 +133,30 @@ Present iff `flags & 0x10`. 12 bytes at +0x14:
 **Rendering** (`extContentFill` 0x426830, called by partDraw / partDrawV / nineSliceBlitC):
 
 - The content rect = dstQuad offset by `insetL`/`insetT` and shrunk by `insetR`/`insetB`.
-- **mode 1**: for each column x in the content rect, `vlineAlpha(surface, y0, y1, x, c)`
+- **mode 1**: for each column x in the surface-clipped content rect (clip via
+  0x425B20, a 4-word drawable-rect helper), `vlineAlpha(surface, y0, y1, x, c)`
   with `c = lerp(gradA, gradB, (x - x0) / w)` per channel — a left→right gradient.
-- **mode 2**: per row, `hlineAlpha` with lerp top→bottom.
+- **mode 2**: direct per-pixel row blend into the 32bpp buffer (surface base +0x18,
+  stride +0x0C), lerp top→bottom — NOT hlineAlpha.
 - mode 0 or others: no-op.
-- Interpolation: per-channel `v = (dx * (B - A)) / w + A` (integer division).
+- Shared loop head (0x426AD4) sets per channel `K = gradB_ch - gradA_ch`,
+  `A = gradA_ch` (R: +0x1B-+0x17 / +0x17; G: +0x1A-+0x16 / +0x16; B: +0x19-+0x15 /
+  +0x15); body: `ch = (dx * K) / denom + A` (signed IDIV, byte truncation), packed
+  0x00BBGGRR.
 - The gradient is drawn **before** the corner/edge blits in `nineSliceBlitC` (so cap
   pixels overdraw the gradient at the borders) and **before** the center blit in
   partDraw/partDrawV (center rows/columns of the source image overdraw it where opaque).
 
-Corpus: 18 ext parts, all from the built-in v2 blob. Modes present: 1 (e.g. parts 110/111)
-and 2 (e.g. SLDR part 122). No other mode values occur.
+Corpus: 18 ext parts, all from the built-in v2 blob. **Mode byte @+0x14: 1 × 2
+(110/111), 2 × 16** (e.g. SLDR part 122, mbar part 256); pad @+0x18 = 0x00 in all 18.
+Gradient values are plausible theme colours (greys 222222→4f4f4f, red accents
+b00000→660000 etc.). No other mode values occur.
 
-**Correction to S1/earlier notes:** the mode byte is at **+0x14** (first ext byte), not
-+0x17 as previously recorded; colours are 3 bytes each starting +0x15/+0x18 (not a
-u16BE "extColour" at +0x14 — that reading came from the 16-bit decompiler view and is
-superseded).
+**Corrections to S1/earlier notes (both verified against code + corpus this batch):**
+1. The mode byte is at **+0x14** (first ext byte), not +0x17 as previously recorded.
+2. The gradient end colour is at **+0x19..+0x1B**, not +0x18..+0x1A; byte +0x18 is
+   pad (the earlier "u16BE extColour at +0x14" reading came from the 16-bit
+   decompiler view and is superseded). Colour byte order on disk is B,G,R.
 
 ---
 
@@ -194,7 +202,7 @@ All renderers take a skin surface, a dst quad/rect, and the C-blob pointer. They
 ```
 decode = cBlobHeaderDecode(cBlob)
 if flags & 0x10: extContentFill(ctx, quad +(insetL, insetT) -(insetR, insetB),
-                                mode=byte+0x14, colA3=+0x15.., colB3=+0x18..)
+                                mode=byte+0x14, gradA3=+0x15..+0x17, gradB3=+0x19..+0x1B)
 bands:  [x, x+capL) cap | [x+capL, x+w-capR) center | [x+w-capR, x+w) cap
 tiled:   caps  = bmpBlitAlpha(mode = (transIdx << 24) | 1)
          center = partBlitRepeat(srcRow = capL, repeat = w)      // one source row, solid
@@ -247,9 +255,10 @@ Plain centers: same loops but `dibSamplePixel` (raw colour, no trans handling) i
 
 ### 4.6 extContentFill (0x426830)
 
-See §2.4. Prototype (this batch): `(surface, contentRect{x,y,w,h}, mode, colourA3,
-colourB3)` — callers pre-split the ext words (the `partDesc[5] & 0xff` /
-`& 0xffffff00` split in partDraw's decompilation is the mode+gradA byte/word split).
+See §2.4. Prototype (this batch): `(surface, contentRect{x,y,w,h}, mode, colourAWord,
+colourBWord)` — callers pre-split the ext words: `colourAWord = (u32LE@+0x14) &
+0xffffff00` (gradA bytes; the +0x14 low byte = mode arrives as the separate mode arg),
+`colourBWord = u32LE@+0x18` (gradB bytes at +0x19..+0x1B; +0x18 = pad).
 
 ### 4.7 blitDecodeTiled (0x426B20) — whole-blob tiling (renamed from FUN_00426b20)
 

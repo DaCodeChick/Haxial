@@ -932,7 +932,7 @@ verified; project saved.
 | 0x406BD0 | rename+proto+comment | **partRecordBuild** (was FUN_00406bd0) — 32B runtime part record: +0 field0 verbatim, +9..+0xC caps (src +0xC..+0xF), +0xD..+0x10 margins (src +0x10..+0x13); size ≥ 0x14; rest G-7 |
 | partDraw, nineSliceBlitC, extContentFill, cBlobHeaderDecode, partBlitRepeat, nineSliceStretchH/V, dibSamplePixel(Trans), bmpBlitToSurface/Alpha, fontGlyphRowBlit3 | comment update | Batch G corrections: decode struct is 32B (not 116B); ext mode byte @+0x14 + 3B gradA/gradB (not u16BE extColour @+0x14); partBlitRepeat/V bodies decoded; 25bpp blit-only mode; 0x450450 dual use (font + DIB 1bpp) |
 | cBlobFileHeader | struct (root DTM) | 20B packed: w,h u16BE; flags; bpp; palCountMinus1; transIdx; clearColour u32BE; capL/T/R/B; marginL/T/R/B |
-| cBlobExtBlock | struct (root DTM) | 12B packed: mode; colourA[3]; colourB[3]; pad; insetL/T/R/B |
+| cBlobExtBlock | struct (root DTM) | 12B packed: mode; colourA[3] (BGR); pad; colourB[3] (BGR); insetL/T/R/B (order corrected in Batch-G correction below) |
 | cBlobDecode | struct (root DTM) | 32B runtime decode: w,h,bpp,rowStride,palCount,rsv,pixelBase,palettePtr (supersedes S1 hapDibSrc; retained for continuity) |
 | partRecord32 | struct (root DTM, partial) | 32B runtime part record; verified +0/+9..+0x10; rsv elsewhere (G-7) |
 | partDraw local_78 | type application (pending) | set_local_variable_type → cBlobDecode submitted after struct moved /haxial → root (DTM lookup is root-only; "Paths must have non-empty elements" on qualified path); result = G-9 |
@@ -942,3 +942,20 @@ create_structure but NOT for set_local_variable_type / plain-name lookup);
 deleted + recreated at root. No GDT/archive definitions touched.
 fontGlyphRowBlit1/2/3 names preserved (Batch F family); 0x450450 dual-use
 documented in comment instead. All renames/prototypes read-back verified.
+
+## S2 Batch G correction — ext block colour offsets (2026-11-24; doc 22 §2.4)
+
+During Batch-G verification the ext-block colour layout was re-derived from
+extContentFill's loop head (0x426AD4) and corpus-verified:
+
+- mode = byte **+0x14** (1 × 2 parts, 2 × 16 in corpus — exact match to the
+  code's `CMP 1` / `CMP 2` branches)
+- gradA = bytes **+0x15..+0x17** (B,G,R on disk), **pad = +0x18** (0x00 in
+  all 18 corpus parts, never read), gradB = bytes **+0x19..+0x1B**
+- mode 2 body = direct per-pixel row blend (not hlineAlpha)
+- cstat.py fixed (was reading +0x17 as "mode"); re-run: 4243 parts, 0 errors,
+  ext mode @+0x14 = {1:2, 2:16}
+
+Ghidra updated: cBlobExtBlock structure replaced (colourB after pad);
+comments corrected on extContentFill, partDraw, partDrawV, nineSliceBlitC,
+partToSkinDib (ext byte references). Project saved.
