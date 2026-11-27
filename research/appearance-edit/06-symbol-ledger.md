@@ -916,3 +916,29 @@ fnt_inspect.py instead — 4 of 7 row fields have unverified semantics;
 applying a partial structure would violate layout-vs-semantic confidence
 separation). No GDT/archive definitions touched. All renames read-back
 verified; project saved.
+
+## S2 Batch G — C-blob rendering pipeline (2026-11-24; doc 22)
+
+| Item | Kind | Detail |
+|---|---|---|
+| 0x429A20 | rename+proto+comment | **partDrawV** (was FUN_00429a20) — vertical 3-band C-blob renderer (capT/center/capB); tiled center = partBlitRepeatV, plain = nineSliceStretchV; extContentFill when flags & 0x10; callers sldrRender/labelMarkerDraw/0x42CED0 |
+| 0x429320 | rename+proto+comment | **partBlitRepeatV** (was FUN_00429320) — tiled vertical band: one source column replicated as solid columns (dibSamplePixelTrans + palette + trans-idx skip → vlineAlpha) |
+| 0x426B20 | rename+proto+comment | **blitDecodeTiled** (was FUN_00426b20) — whole-blob texture tiling across dst (block blits stepping by srcW/srcH); w==1 special case = horizontal stripes; base layer for widgetBaseFill/bmpSetMetrics/bmpSetCellState/mbar painters |
+| 0x425D30 | rename+proto+comment | **hlineAlpha** (was FUN_00425d30) — alpha hline; colour low byte: 0 opaque, 1..254 blend (÷128, SHR 7), 255 no-op |
+| 0x425F20 | rename+proto+comment | **vlineAlpha** (was FUN_00425f20) — alpha vline, same convention |
+| 0x42AB30 | rename+proto+comment | **mbarTitleBackground** (was FUN_0042ab30) — part 255 (gApp+0x43C) decode+blitDecodeTiled, then part 256 (gApp+0x440) nineSliceBlitC; only caller mbarDrawTitles |
+| 0x42AC00 | rename+proto+comment | **mbarDrawTitleItem** (was FUN_0042ac00) — state word → base 433/434/435 + overlay 261/262/263 (partOff idx); overlay field0 (u32BE @+8) = text bg via bmpSetFillModeRaw+bmpFillChecked; then 0x426E00 text overlay |
+| 0x406810 | rename+proto+comment | **partToSkinDib** (was FUN_00406810) — part → runtime skin DIB; marginT≠0 → ext/margin remap into out+0x14..+0x19 (gradient re-anchor, PROBABLE); pixel copy 0x41BB10; DIB finalise 0x441D80; guard a2==0 → *outSize=0 |
+| 0x406BD0 | rename+proto+comment | **partRecordBuild** (was FUN_00406bd0) — 32B runtime part record: +0 field0 verbatim, +9..+0xC caps (src +0xC..+0xF), +0xD..+0x10 margins (src +0x10..+0x13); size ≥ 0x14; rest G-7 |
+| partDraw, nineSliceBlitC, extContentFill, cBlobHeaderDecode, partBlitRepeat, nineSliceStretchH/V, dibSamplePixel(Trans), bmpBlitToSurface/Alpha, fontGlyphRowBlit3 | comment update | Batch G corrections: decode struct is 32B (not 116B); ext mode byte @+0x14 + 3B gradA/gradB (not u16BE extColour @+0x14); partBlitRepeat/V bodies decoded; 25bpp blit-only mode; 0x450450 dual use (font + DIB 1bpp) |
+| cBlobFileHeader | struct (root DTM) | 20B packed: w,h u16BE; flags; bpp; palCountMinus1; transIdx; clearColour u32BE; capL/T/R/B; marginL/T/R/B |
+| cBlobExtBlock | struct (root DTM) | 12B packed: mode; colourA[3]; colourB[3]; pad; insetL/T/R/B |
+| cBlobDecode | struct (root DTM) | 32B runtime decode: w,h,bpp,rowStride,palCount,rsv,pixelBase,palettePtr (supersedes S1 hapDibSrc; retained for continuity) |
+| partRecord32 | struct (root DTM, partial) | 32B runtime part record; verified +0/+9..+0x10; rsv elsewhere (G-7) |
+| partDraw local_78 | type application (pending) | set_local_variable_type → cBlobDecode submitted after struct moved /haxial → root (DTM lookup is root-only; "Paths must have non-empty elements" on qualified path); result = G-9 |
+
+Structs were first created under /haxial (category path works for
+create_structure but NOT for set_local_variable_type / plain-name lookup);
+deleted + recreated at root. No GDT/archive definitions touched.
+fontGlyphRowBlit1/2/3 names preserved (Batch F family); 0x450450 dual-use
+documented in comment instead. All renames/prototypes read-back verified.

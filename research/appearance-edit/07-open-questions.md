@@ -285,13 +285,22 @@ corpus)**
    rules (arrows dropped below threshold, per `vscrollbars.png`).
 3. D 54-role table: per-widget color-role indices (cross-check against
    `app-builtintheme-blank/colors.png` swatch order).
-4. C-blob ext-header residues: u32 colour role (backing/transition?),
+4. ~~C-blob ext-header residues: u32 colour role (backing/transition?),
    inset-group semantics on the (5,0,5,0) samples; `labelPaint` helpers
-   (`FUN_0040CE90`, `FUN_004093E0`) and the `.fnt` rasterizer.
+   (`FUN_0040CE90`, `FUN_004093E0`) and the `.fnt` rasterizer.~~
+   **RESOLVED (Batch G, doc 22)** — field0 (+0x08) = clear/fill colour
+   (100 distinct corpus values; 3 consumer families), field2 (+0x10) =
+   margins {L,T,R,B} (scrollbar-family concentration), ext block
+   (+0x14..+0x1F) = mode + 2×3B gradient colours + insets; label/text
+   pipeline resolved in Batch F (doc 21). Residues → G-1..G-9 (doc 22 §10).
 5. Semantic-enrichment pass over S1 scope (prototypes, structs, comments —
    same discipline as `09` §1).
 
 **Stage S2 — Remaining evidence closure**
+5b. ~~C-blob rendering pipeline (Batch G).~~ **DONE (doc 22)** — full
+   header/ext/flags semantics, renderer family, DIB engine, editor part
+   pipeline; backlog G-1..G-9. Remaining S2 open items: G-4 (175-entry
+   part→widget table), SLDR max/value runtime anomaly, Batch V audit.
 6. ~~Examine the unexamined screenshots...~~ **11 done (S1)** — 17/22
    total; doc 15 §3–§7, doc 10. 5 list views remain (corroborative; name
    tables already recovered from the binary, doc 16).

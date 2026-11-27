@@ -711,5 +711,49 @@ to enumerate literals — we list strings and diff ourselves.
 - F-7 multi-line wrapping (interaction layer, beyond F boundary)
 - F-8 per-appearance font selection (corpus .hap fonts absent — E3-11)
 
-**Next: Batch G** (C-blob remainder, `flags & 1` tiled branch) or
-**Batch V** (final audit/readiness) per owner sequencing.
+**Batch G — DONE (2026-11-24, doc 22, Ghidra saved):**
+- C-blob file layout closed: 20B header (w/h u16BE, flags, bpp, palCount-1,
+  transIdx, field0 clearColour u32BE @+8, caps @+0xC..+0xF, field2 margins
+  u32BE @+0x10) + 12B ext block @+0x14 iff flags & 0x10 (mode @+0x14,
+  gradA 3B @+0x15, gradB 3B @+0x18, pad, insets 4B @+0x1C) + palette +
+  pixels. Palette precedes pixels; stride formula both tables.
+- field0 = surface clear/fill COLOUR (not a flag): 3 consumer families
+  (widgetBaseFill, bmpSetCellState, mbarDrawTitleItem) + editor verbatim
+  copy; 100 distinct corpus values (0x00 black 3012, 0xFFFFFF white 169).
+- field2 = margins {L,T,R,B}: sldrPartLookup, sbarRectsCompute, ~12
+  painters + editor remap into gradient (partToSkinDib); 215 distinct
+  values, non-zero concentrated in scrollbar parts 146-177/204-223.
+- flags: bit0 = tiled/transpath (2232/4243, 53%), 0x10 = ext (18, built-in
+  v2 only); bits 2/4/8 (secondary row-bpp, 0x441F70) = ZERO corpus
+  occurrences → dead/legacy unproven (G-8).
+- Renderers: partDraw H 3-band, partDrawV V 3-band (0x429A20),
+  nineSliceBlitC 9-region (center = sampled pixel solid fill, NOT a
+  region), partBlitRepeat/V tiled centers (one row/col replicated solid),
+  nineSliceStretchH/V plain centers, extContentFill gradients (mode 1 H,
+  mode 2 V; per-channel integer lerp; /128 blend in hlineAlpha/vlineAlpha:
+  0 opaque, 1..254 blend, 255 skip), blitDecodeTiled whole-blob texture
+  tiling (w==1 → horizontal stripes).
+- DIB engine: surface magic 0xF4DA120B @+0x44; bmpBlitToSurface/bmpBlitAlpha
+  32-entry bpp tables (valid 1/2/4/8/16/25/32; 25bpp blit-only quirk);
+  alpha thunks → 0x450450 (SHARED with font 1bpp blit — Batch F family
+  preserved, dual-use documented) / 0x4508C0 / 0x450C10 / 0x450DC0 /
+  0x451060 / 0x451110 / 0x4511A0; dibSamplePixel(Trans) (col,row) bounds
+  + palette @+0x1C / 555→888 tables 0x479B48/BC8/C48; error 0x10002.
+- mbar title painters: mbarTitleBackground (0x42AB30; parts 255 tiled base
+  + 256 nine-slice overlay), mbarDrawTitleItem (0x42AC00; 3 states →
+  base 433/434/435 + overlay 261/262/263 + field0 text bg + 0x426E00 text).
+- Editor: hapCBlobParse/hapCSectionRead(0xAF=175)/Write/Size verbatim;
+  partRecordBuild (0x406BD0) 32B record {field0 @+0, caps @+9..+0xC,
+  margins @+0xD..+0x10}; partToSkinDib (0x406810) margin→gradient remap
+  (PROBABLE, G-2).
+- Ghidra: 9 renames, 9 prototypes, 21 comments (incl. 2 stale S1
+  corrections: "116B decode" → 32B cBlobDecode, "extColour u16BE" → mode
+  byte + 3B colours), 4 structures (cBlobFileHeader 20B, cBlobExtBlock
+  12B, cBlobDecode 32B, partRecord32 32B partial) relocated to root DTM
+  category. cBlobDecode→partDraw local_78 **APPLIED + saved** (G-9 resolved);
+  infer_structure_from_variable failed (split scalars).
+  All renames/protos read-back verified.
+- Backlog G-1..G-9 in doc 22 §10 (part table mapping G-4 largest).
+
+**Next: Batch V** (final audit & readiness) — the audit document will be
+`23-s2-evidence-closure-and-readiness.md` (doc 22 was taken by Batch G).
