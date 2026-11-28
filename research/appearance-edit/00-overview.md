@@ -212,6 +212,19 @@ flags, size u32BE, offset u32BE) record, binary-searched; NOT an eight-char stri
   recorded in `docs/architecture/rust-workspace.md` (haxial-core, backend
   crates, haxial-ui, haxial-import → haxial-compat; design decisions, not RE
   findings).
-- Remaining S2 batches: C (enrichment gate + widgetStateSet re-audit), D
-  (geometry/part tables), E (resources/colors), F (font), G (C-blob), V
-  (validation + docs 19–21).
+- **Batches C/D/D-late/E/F/G COMPLETE** (docs 19–22): geometry/part tables,
+  scrollbar closure, appearance lifecycle (131-vs-512 resolved: 512 = fixed
+  capacity), font & text pipeline (.fnt v2 64B header, 4 embedded fonts,
+  UTF-8), C-blob rendering pipeline (9-slice, tiling, alpha conventions,
+  ext-block colour offsets corrected).
+- **Batch V IN PROGRESS** (validation & closure, docs 23–24): V1 font-pipeline
+  closure COMPLETE (two-object font model: fontCtxObj ≠ s2FontObj; .fnt =
+  count × 24B face blocks + D × 16B row tables + per-face pixel pool;
+  author pstr @+0x58; V1.4 corpus revalidation 15/15). **V2.1 COMPLETE**
+  (doc 24): part-index → widget/state map — 58 code-verified indices
+  (SLDR/scrollbar/MBAR/KOLR/BPMN/window-content), 142-slot canonical part
+  schema (built-in == corpus), 5 renderer renames (prgs/sepr/box/kolr/bpmn),
+  G-5 resolved (0x42CED0 = SEPR), mbar index correction (0x101/0x102/0x105/
+  0x106). Remaining: V2.2 (C-blob residual), V2.1-rem (data-driven index
+  fields), V2.3–V7, final doc 23 + S2 verdict.
+- Remaining S2 batches: V (validation, docs 23–24).

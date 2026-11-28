@@ -1100,3 +1100,44 @@ The +0x34 pointer/count question is preserved open per owner directive
 (no historical interpretation selected); remaining open items: s2ObjPtr
 pointee identity; object-field caller targets (0x42B28C/0x42B417 etc.);
 s2FontObj head +0x00..+0x2F.
+
+## S2 Batch V (V2.1) — part-index map & widget/state binding (2026-11-27; doc 24)
+
+**New document:** `24-s2-part-map-and-widget-states.md` (G-4 deliverable; closes
+doc 22 G-4, resolves G-5).
+
+### Renames (5; read-back verified via list_functions)
+| addr | old | new | evidence | confidence |
+|---|---|---|---|---|
+| 0x42C610 | FUN_0042c610 | **prgsRender** | sole caller = PRGS class paint slot 0x437E90 (class @0x467B84, doc 18 §2) | CONFIRMED |
+| 0x42CED0 | FUN_0042ced0 | **seprRender** | sole caller = SEPR class paint slot 0x436100 (class @0x4677B0) — **resolves G-5** | CONFIRMED |
+| 0x429E80 | FUN_00429e80 | **boxRender** | sole caller = BOX! class paint slot 0x436070 (class @0x4676EC) | CONFIRMED |
+| 0x42D060 | FUN_0042d060 | **kolrRender** | sole caller = KOLR paint slot 0x4372C0; indices 0x109/0x10A/0x10B in body | CONFIRMED |
+| 0x42AD40 | FUN_0042ad40 | **bpmnRender** | sole caller = BPMN paint slot 0x4365E0; indices 0x49-0x4B/0x4D-0x4F/0x51-0x53 in body | CONFIRMED |
+
+### Function comments (6)
+prgsRender, seprRender, boxRender, kolrRender, bpmnRender (part indices + sole
+caller class), FUN_0042d6d0 (4 groups 0xCF-0xE0 x 3 variants + caller chain
+0x40EA50->0x40E570; name withheld — final consumer class not closed).
+
+### Findings (no new structures)
+- partOff[512] @ appearance+0x40 re-verified; C section at HAP coff(+0x34)=0x144,
+  csize(+0x38)=0x7838 (built-in). **142 canonical used slots**: built-in == corpus
+  set (38 corpus files; 124/142 overlap; corpus-only 0x1/0xB8/0xBA/0xBB/0xBC/0xD2/
+  0xD7/0xDC/0xE1/0xEB-0xF2/0xFF; built-in-only 18 incl. 0x61-0x6C).
+- **58 code-verified part indices** (SLDR 18, scrollbar 12, MBAR 4, KOLR 3, BPMN 9,
+  window-content 12); 86/142 used built-in slots have no code-verified consumer
+  (listed as shape facts, no speculative names).
+- Corrections: (1) sldrRender 0x6E/0x6F are part records, not colour entries;
+  (2) doc 22 "mbar parts 255/256/433-435/261-263" superseded — code-verified
+  mbar indices = 0x101/0x102 (empty in built-in) + 0x105/0x106; old set preserved
+  as open item (doc 24 §5/4).
+- Data-driven index fields for PRGS/SEPR/BOX!/BUTN/IKBT/list/label families +
+  editor grid + %MNU rows = backlog V2.1-rem (doc 24 §5).
+
+### Verification
+- part_map.py: 142/142 slots parsed, 0 header errors; corpus scan 142 canonical
+  slots.
+- Rename read-back (list_functions): all 5 present with new names.
+- Caller mapping via get_callers cross-referenced with doc 18 §2 21-class paint
+  table (each renamed fn has a sole caller = the class paint slot).

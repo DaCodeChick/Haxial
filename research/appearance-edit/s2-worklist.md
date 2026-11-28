@@ -821,3 +821,33 @@ to enumerate literals — we list strings and diff ourselves.
 - "No loader found" scoped to this build only (not evidence about other
   Haxial components) — doc 21 §14.1 scope note.
 - NEXT: V2.1 part-to-widget/state mapping (G-4, 175 entries).
+
+## Batch V — V2.1 part-to-widget/state mapping (2026-11-27)
+- **doc 24 CREATED** (24-s2-part-map-and-widget-states.md): the G-4 deliverable.
+- Part-table schema re-verified: partOff[512] @ appearance+0x40 (C section at
+  HAP coff=+0x34); **142 canonical used slots** — built-in uses exactly 142,
+  corpus (38 files with C section) uses the SAME 142-set (124 overlap;
+  built-in = reference implementation of the canonical set, NOT an outlier).
+- **58 code-verified indices** extracted by single-pass disassembly of every
+  `[app + idx*4 + 0x40]` load:
+  - SLDR 18 (0x6E-0x84; h-track 0x6E/0x6F/0x70, h-thumb 0x72/0x73/0x74 +
+    pressed 0x76/0x77/0x78, v-track 0x7A/0x7B/0x7C, v-thumb 0x7E/0x7F/0x80 +
+    pressed 0x82/0x83/0x84; state = valueStruct bit 0x20 pressed)
+  - scrollbar 12 (hSbar 0x92-0x97, vSbar 0xA5-0xAA — doc 20 §12 confirmed)
+  - MBAR 4 (0x101/0x102 background — EMPTY in built-in; 0x105/0x106 content
+    tiles; state bit 0) — **correction** to doc 22's 255/256/433-435 numbers
+  - KOLR 3 (0x109/0x10A/0x10B) — kolrRender 0x42D060
+  - BPMN 9 (0x49-0x4B, 0x4D-0x4F, 0x51-0x53; two state groups x 3 variants) —
+    bpmnRender 0x42AD40
+  - window content 12 (0xCF-0xE0, 4 groups x 3 variants; caller chain
+    0x40EA50 pre-paint -> 0x40E570 -> FUN_0042d6d0; final widget class NOT
+    closed — name withheld)
+- 5 Ghidra renames (read-back verified): prgsRender 0x42C610, seprRender
+  0x42CED0 (**G-5 RESOLVED** = SEPR), boxRender 0x429E80, kolrRender
+  0x42D060, bpmnRender 0x42AD40. 6 function comments (indices + caller
+  chains). All via caller -> class paint slot (doc 18 §2 table).
+- 86 of 142 used built-in slots have NO code-verified consumer — listed as
+  shape facts only (HYPOTHESIS tags, no speculative names). Data-driven index
+  field recovery = backlog V2.1-rem (doc 24 §5, 5 items).
+- Correction: sldrRender 0x6E/0x6F are part RECORDS (not colour entries).
+- NEXT: V2.2 (C-blob residual G-1..G-3, G-6..G-8) + V2.1-rem backlog.

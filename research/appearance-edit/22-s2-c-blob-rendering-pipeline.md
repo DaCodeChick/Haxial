@@ -353,9 +353,13 @@ Both are called only from `mbarDrawTitles` (0x42EF60):
   incl. 0x30) using stateRec+4/+8/+0xC. The field0-as-text-background role here is
   further confirmation of §2.2.
 
-Part-index → widget meaning for 255/256/261..263/433..435: PROBABLE menu-bar title
-background / selected/pressed/hovered states; the full 175-entry part table mapping is
-backlog G-4.
+Part-index → widget meaning for 255/256/261..263/433..435: **SUPERSEDED (Batch V
+V2.1 / doc 24)** — the mbar code-verified indices are 0x101/0x102 (background, EMPTY
+in the built-in) and 0x105/0x106 (content tiles); the 255/256/433-435 set is not
+reproducible from the mbar painter disassembly (preserved as open item doc 24 §5/4).
+The full part-index → widget/state map is now doc 24 (V2.1, 58 code-verified indices
+across SLDR/scrollbar/MBAR/KOLR/BPMN/window-content; the built-in + corpus canonical
+set is 142 slots, not 175).
 
 ---
 
@@ -420,9 +424,10 @@ record layout of the output, role of a2) is backlog G-2.
 | alpha line convention (0 opaque / 1..254 blend /255 skip, /128) | executable code (SHR 7) |
 | surface magic 0xF4DA120B, bpp dispatch incl. 25bpp | executable code + jump tables (raw) |
 | 555→888 expansion tables, palette @+0x1C | executable code |
-| mbar parts 255/256/433-435/261-263 roles | executable code (call sites, state word); semantic state names PROBABLE |
+| mbar parts (code-verified 0x101/0x102/0x105/0x106; 0x101/0x102 empty in built-in) | executable code (mbarDrawTitleItem) — see doc 24 §2.3 |
 | editor never modifies part fields | executable code (hapCSectionWrite verbatim copy; partRecordBuild verbatim copies) |
-| part → widget identity for all 175 entries | **not verified** (G-4) |
+| part → widget identity for code-constant consumers (SLDR/scrollbar/MBAR/KOLR/BPMN/window-content) | **verified** (doc 24, V2.1) — 58 code-verified indices |
+| part → widget identity for data-driven consumers (PRGS/SEPR/BOX!/BUTN/IKBT/list/label/IKON-adjacent) | **not verified** (doc 24 §5 V2.1-rem) — consumer class known, index field untraced |
 
 ---
 
@@ -472,8 +477,8 @@ dual-use documented instead). No GDT/archive types touched.
 | G-1 | modeWord full semantics for 16/25/32bpp alpha thunks (bit0 only proven at part call sites) | open |
 | G-2 | partToSkinDib: exact output DIB record layout, role of a2, pixel-copy details | open |
 | G-3 | 25bpp pixel layout (blit-only mode; no sampler) | open |
-| G-4 | 175-entry part table: index → widget/state identity (255/256/261-263/433-435 PROBABLE mbar; rest unmapped) | open |
-| G-5 | 0x42CED0 (third partDraw/partDrawV caller) identity | open |
+| G-4 | 175-entry part table: index → widget/state identity | **closed → doc 24** (V2.1): 58 code-verified indices (SLDR 18, scrollbar 12, MBAR 4, KOLR 3, BPMN 9, window-content 12; 0x101/0x102 empty in built-in); canonical set = 142 slots (built-in == corpus); 86 used built-in slots still lack a code-verified consumer (listed unassigned, no speculative names). Data-driven index fields = backlog doc 24 §5 (V2.1-rem). |
+| G-5 | 0x42CED0 (third partDraw/partDrawV caller) identity | **resolved → doc 24**: 0x42CED0 = SEPR (separator) part renderer, renamed `seprRender`; sole caller = SEPR class paint slot (0x436100). |
 | G-6 | 0x426E00 (mbar title text overlay) internals | open |
 | G-7 | partRecord32 remaining fields (+0x04..+0x08, +0x11..+0x1F) — finish decoding 0x406BD0 | open |
 | G-8 | flags 0x02/0x04/0x08: dead vs legacy — needs a corpus part or second build to exercise | open |
